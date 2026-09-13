@@ -3,7 +3,6 @@
 import { ChangeEvent, DragEvent, useEffect, useRef, useState } from 'react'
 
 type UploadImage = { blob: Blob; index: number }
-
 type IconProps = { size?: number; className?: string }
 
 function UploadIcon({ size = 30, className }: IconProps) {
@@ -16,6 +15,22 @@ function EditIcon({ size = 16 }: IconProps) {
 
 function CheckIcon({ size = 28 }: IconProps) {
   return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg>
+}
+
+function CameraIcon({ size = 22 }: IconProps) {
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /></svg>
+}
+
+function PlayIcon({ size = 20 }: IconProps) {
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+}
+
+function PauseIcon({ size = 20 }: IconProps) {
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z" /></svg>
+}
+
+function ShieldIcon({ size = 14 }: IconProps) {
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
 }
 
 export default function Page({ botName = 'default' }: { botName?: string }) {
@@ -62,11 +77,11 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       video.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
       setProcessing(true)
       setProgress(0)
-      setStatus('Preparing upload...')
+      setStatus('Processing video...')
       processVideo().then(captured => {
         setFrames(captured)
         setProgress(100)
-        setStatus(captured.length ? 'Ready to send' : 'Could not prepare video')
+        setStatus(captured.length ? 'Ready to submit' : 'Could not prepare video')
       }).catch(() => setStatus('Could not prepare video')).finally(() => setProcessing(false))
     }
     video.onerror = () => setStatus('Video could not be loaded. Try another file.')
@@ -128,7 +143,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
   function chooseFile(selected: File | undefined) {
     if (!selected || !selected.type.startsWith('video/')) { setStatus('Please choose a video file.'); return }
     if (selected.size > 100 * 1024 * 1024) { setStatus('Video must be smaller than 100 MB.'); return }
-    setFile(selected); setFrames([]); setProgress(0); setProcessing(false); setStatus('Ready to send'); setVideoDuration(0)
+    setFile(selected); setFrames([]); setProgress(0); setProcessing(false); setStatus(''); setVideoDuration(0)
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
     const url = URL.createObjectURL(selected); objectUrlRef.current = url
   }
@@ -193,7 +208,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
       if (blob && blob.size > 1000) captured.push({ blob, index: i })
       setProgress(Math.round(((i + 1) / captureTargets.length) * 100))
-      setStatus('Preparing upload...')
+      setStatus('Processing video...')
     }
     return captured
   }
@@ -207,7 +222,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
   async function submit() {
     if (!file || !commentScreenshot || sending) return
     if (!frames.length || processing || progress < 100) return
-    setSending(true); setStatus('Uploading your video...')
+    setSending(true); setStatus('Sending...')
     try {
       const frameTimes = getCapturePoints(videoDuration).filter(second => second < videoDuration)
       console.log('[v0] Upload botName:', botKey)
@@ -220,7 +235,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       if (!response.ok) throw new Error(result?.error || 'Send failed')
       setStatus(result?.warning || 'Sent successfully.')
       setSent(true)
-    } catch (error) { setStatus(error instanceof Error ? error.message : 'Could not send the file. Please try again.') } finally { setProcessing(false); setSending(false) }
+    } catch (error) { setStatus(error instanceof Error ? error.message : 'Could not send. Please try again.') } finally { setProcessing(false); setSending(false) }
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) { event.preventDefault(); setDragging(false); chooseFile(event.dataTransfer.files[0]) }
@@ -229,34 +244,199 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
   return <main className="app-shell">
     <div className="ambient ambient-one" /><div className="ambient ambient-two" />
     <section className="card" aria-live="polite">
-      {step === 'welcome' ? <div className="welcome-panel">
-        <div className="brand-mark" aria-label="VidFrame"></div>
-        <p className="eyebrow">UPLOAD YOUR VIDEO</p>
-        <h1>Send your video<br /><span>in a few taps.</span></h1>
-        <p className="subcopy">Enter your phone number to get started. Your video will be processed.</p>
-        <label className="field-label" htmlFor="number">Phone number</label>
-        <input id="number" className="number-input" type="tel" inputMode="numeric" placeholder="e.g. 9876543210" value={number} onChange={event => { setNumber(event.target.value.replace(/\D/g, '')); setNumberError('') }} onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing && event.keyCode !== 229) continueToUpload() }} />
-        {numberError && <p className="error-text" role="alert">{numberError}</p>}
-        <button className="primary-button" onClick={continueToUpload}>Continue <span aria-hidden="true">→</span></button>
-        <p className="privacy-note">Your number is only used to identify your upload.</p>
-      </div> : <div className="upload-panel">
-        <header className="panel-header"><div><p className="eyebrow">VIDEO UPLOAD <span className="bot-badge">{botKey === 'default' ? 'MAIN' : botKey.toUpperCase()}</span></p><h1>Ready For Upload.</h1></div><span className="step-count">02 <span>/ 02</span></span></header>
-        <div className="account-bar"><div><span className="tiny-label">UPLOADING AS</span><strong>{number}</strong></div><button className="icon-button" aria-label="Edit phone number" onClick={() => { setDraftNumber(number); setNumberError(''); setEditOpen(true) }}><EditIcon /></button></div>
-        <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
-        <input ref={screenshotInputRef} type="file" accept="image/*" hidden onChange={event => { void chooseScreenshot(event.target.files?.[0]) }} />
-        <div className="upload-choice-row">
-          <button type="button" className={`upload-choice video-choice ${file ? 'is-selected' : ''} ${dragging ? 'is-dragging' : ''}`} onClick={() => inputRef.current?.click()} onDragOver={event => { event.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={handleDrop}><UploadIcon /><strong>{file ? 'Video selected' : 'Select video'}</strong><span>{file ? 'Ready' : 'MP4, MOV up to 100MB'}</span></button>
-          <button type="button" className={`upload-choice screenshot-choice ${commentScreenshot ? 'is-selected' : ''}`} onClick={() => screenshotInputRef.current?.click()}><span className="choice-plus">+</span><strong>{commentScreenshot ? 'Screenshot selected' : 'Upload screenshot'}</strong><span>{commentScreenshot ? 'Ready' : 'Required'}</span></button>
+      {step === 'welcome' ? (
+        <div className="welcome-panel">
+          <p className="eyebrow">SECURE UPLOAD</p>
+          <h1>Send your video<br /><span>in a few taps.</span></h1>
+          <p className="subcopy">Enter your phone number to get started. Your video will be processed securely.</p>
+          
+          <label className="field-label" htmlFor="number">Phone number</label>
+          <input 
+            id="number" 
+            className="number-input" 
+            type="tel" 
+            inputMode="numeric" 
+            placeholder="e.g. 9876543210" 
+            value={number} 
+            onChange={event => { setNumber(event.target.value.replace(/\D/g, '')); setNumberError('') }} 
+            onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing && event.keyCode !== 229) continueToUpload() }} 
+          />
+          {numberError && <p className="error-text" role="alert">{numberError}</p>}
+          
+          <button className="primary-button" onClick={continueToUpload}>
+            Continue <span aria-hidden="true">→</span>
+          </button>
+          
+          <p className="privacy-note">
+            <ShieldIcon size={12} />
+            <span>Your number is only used to identify your upload.</span>
+          </p>
         </div>
-        {file && <div className="preview-wrap"><video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} /><div className="video-info-overlay"><span className="video-info-name">{file.name}</span><span className="video-info-duration">{videoDuration > 0 ? formatTime(videoDuration) : '--:--'}</span></div><button className="play-button" aria-label={playing ? 'Pause video' : 'Play video'} onClick={togglePlay}>{playing ? 'Ⅱ' : '▶'}</button><div className="file-meta"><span>{file.name}</span><span>{videoDuration > 0 ? formatTime(videoDuration) : '--:--'} · {(file.size / (1024 * 1024)).toFixed(1)} MB</span></div></div>}
-        {file && videoDuration > 0 && progress < 100 && <div className="timeline-wrap"><div className="timeline-head"><span>Timeline</span><span className="current">{formatTime(timelineTime)}</span></div><div className="timeline"><div className="timeline-fill" style={{ width: `${Math.min(100, (timelineTime / videoDuration) * 100)}%` }} /><div className="timeline-markers">{getCapturePoints(videoDuration).map((point, index) => point <= videoDuration && <span key={point} className={`marker marker-${index + 1} ${timelineTime > point + .5 ? 'passed' : Math.abs(timelineTime - point) < .5 ? 'current' : ''}`} style={{ left: `${Math.max(3, Math.min(97, (point / videoDuration) * 100))}%` }}>{index + 1}</span>)}</div></div><div className="timeline-labels"><span>0:00</span><span>{formatTime(videoDuration)}</span></div></div>}
-        {file && <div className="progress-area"><div className="progress-heading"><span>{processing ? 'Uploading video' : status || 'Ready to submit'}</span><strong>{progress}%</strong></div><div className="progress-track"><div className="progress-fill" style={{ width: `${progress}%` }} /></div><p>{processing ? 'Please keep this screen open while your video uploads.' : frames.length ? 'Your video is ready.' : status}</p></div>}
-        {status && !processing && !frames.length && file && <p className="error-text" role="alert">{status}</p>}
-        {file && <button className={`primary-button submit-button ${progress === 100 && frames.length ? 'is-ready' : ''}`} disabled={sending || processing || progress < 100 || !frames.length || !commentScreenshot} onClick={submit}>{sending ? 'Sending...' : processing ? 'Preparing...' : 'Send video'} <span aria-hidden="true">→</span></button>}
-        {!file && <p className="privacy-note upload-note">Your video stays private and is sent securely.</p>}
-      </div>}
+      ) : (
+        <div className="upload-panel">
+          <header className="panel-header">
+            <div>
+              <p className="eyebrow">
+                VIDEO UPLOAD 
+                <span className="bot-badge">{botKey === 'default' ? 'MAIN' : botKey.toUpperCase()}</span>
+              </p>
+              <h1>Upload your video.</h1>
+            </div>
+            <span className="step-count">02<span>/02</span></span>
+          </header>
+
+          <div className="account-bar">
+            <div>
+              <span className="tiny-label">UPLOADING AS</span>
+              <strong>{number}</strong>
+            </div>
+            <button 
+              className="icon-button" 
+              aria-label="Edit phone number" 
+              onClick={() => { setDraftNumber(number); setNumberError(''); setEditOpen(true) }}
+            >
+              <EditIcon />
+            </button>
+          </div>
+
+          <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
+          <input ref={screenshotInputRef} type="file" accept="image/*" hidden onChange={event => { void chooseScreenshot(event.target.files?.[0]) }} />
+
+          <div className="upload-choice-row">
+            <button 
+              type="button" 
+              className={`upload-choice video-choice ${file ? 'is-selected' : ''} ${dragging ? 'is-dragging' : ''}`} 
+              onClick={() => inputRef.current?.click()} 
+              onDragOver={event => { event.preventDefault(); setDragging(true) }} 
+              onDragLeave={() => setDragging(false)} 
+              onDrop={handleDrop}
+            >
+              <UploadIcon />
+              <strong>{file ? 'Video selected' : 'Select video'}</strong>
+              <span>{file ? 'Tap to replace' : 'MP4, MOV · up to 100 MB'}</span>
+            </button>
+            <button 
+              type="button" 
+              className={`upload-choice screenshot-choice ${commentScreenshot ? 'is-selected' : ''}`} 
+              onClick={() => screenshotInputRef.current?.click()}
+            >
+              <span className="choice-plus">
+                {commentScreenshot ? <CheckIcon size={20} /> : <CameraIcon size={22} />}
+              </span>
+              <strong>{commentScreenshot ? 'Screenshot ready' : 'Add screenshot'}</strong>
+              <span>{commentScreenshot ? 'Tap to replace' : 'Comment proof · required'}</span>
+            </button>
+          </div>
+
+          {file && (
+            <div className="preview-wrap">
+              <video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
+              <div className="video-info-overlay">
+                <span className="video-info-name">{file.name}</span>
+                <span className="video-info-duration">{videoDuration > 0 ? formatTime(videoDuration) : '--:--'}</span>
+              </div>
+              <button className="play-button" aria-label={playing ? 'Pause video' : 'Play video'} onClick={togglePlay}>
+                {playing ? <PauseIcon size={22} /> : <PlayIcon size={22} />}
+              </button>
+            </div>
+          )}
+
+          {file && videoDuration > 0 && progress < 100 && (
+            <div className="timeline-wrap">
+              <div className="timeline-head">
+                <span>Timeline</span>
+                <span className="current">{formatTime(timelineTime)}</span>
+              </div>
+              <div className="timeline">
+                <div className="timeline-fill" style={{ width: `${Math.min(100, (timelineTime / videoDuration) * 100)}%` }} />
+                <div className="timeline-markers">
+                  {getCapturePoints(videoDuration).map((point, index) => point <= videoDuration && (
+                    <span 
+                      key={point} 
+                      className={`marker marker-${index + 1} ${timelineTime > point + .5 ? 'passed' : Math.abs(timelineTime - point) < .5 ? 'current' : ''}`} 
+                      style={{ left: `${Math.max(3, Math.min(97, (point / videoDuration) * 100))}%` }}
+                    >
+                      {index + 1}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="timeline-labels">
+                <span>0:00</span>
+                <span>{formatTime(videoDuration)}</span>
+              </div>
+            </div>
+          )}
+
+          {file && (
+            <div className="progress-area">
+              <div className="progress-heading">
+                <span>{processing ? 'Processing video' : status || 'Ready to submit'}</span>
+                <strong>{progress}%</strong>
+              </div>
+              <div className="progress-track">
+                <div className="progress-fill" style={{ width: `${progress}%` }} />
+              </div>
+              <p>{processing ? 'Please keep this screen open while we process.' : frames.length ? 'Your video is ready to submit.' : status}</p>
+            </div>
+          )}
+
+          {status && !processing && !frames.length && file && <p className="error-text" role="alert">{status}</p>}
+
+          {file && (
+            <button 
+              className={`primary-button submit-button ${progress === 100 && frames.length ? 'is-ready' : ''}`} 
+              disabled={sending || processing || progress < 100 || !frames.length || !commentScreenshot} 
+              onClick={submit}
+            >
+              {sending ? 'Submitting...' : processing ? 'Processing...' : 'Submit video'} 
+              <span aria-hidden="true">→</span>
+            </button>
+          )}
+
+          {!file && (
+            <p className="privacy-note upload-note">
+              <ShieldIcon size={12} />
+              <span>Your video stays private and is sent securely.</span>
+            </p>
+          )}
+        </div>
+      )}
     </section>
-    {editOpen && <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditOpen(false) }}><div className="modal" role="dialog" aria-modal="true" aria-labelledby="edit-title"><div className="modal-top"><p className="eyebrow">ACCOUNT DETAILS</p><button className="close-button" aria-label="Close" onClick={() => setEditOpen(false)}>×</button></div><h2 id="edit-title">Edit your number</h2><input autoFocus className="number-input" type="tel" inputMode="numeric" value={draftNumber} onChange={event => { setDraftNumber(event.target.value.replace(/\D/g, '')); setNumberError('') }} onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing && event.keyCode !== 229) saveNumber() }} />{numberError && <p className="error-text" role="alert">{numberError}</p>}<button className="primary-button" onClick={saveNumber}>Save changes</button></div></div>}
-    {sent && <div className="modal-backdrop"><div className="success-modal" role="dialog" aria-modal="true"><div className="success-icon"><CheckIcon /></div><p className="eyebrow">UPLOAD COMPLETE</p><h2>Uploaded successfully.</h2><p>Your video has been saved.</p><button className="primary-button" onClick={() => setSent(false)}>Done</button></div></div>}
+
+    {editOpen && (
+      <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditOpen(false) }}>
+        <div className="modal" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+          <div className="modal-top">
+            <p className="eyebrow">ACCOUNT</p>
+            <button className="close-button" aria-label="Close" onClick={() => setEditOpen(false)}>×</button>
+          </div>
+          <h2 id="edit-title">Edit number</h2>
+          <input 
+            autoFocus 
+            className="number-input" 
+            type="tel" 
+            inputMode="numeric" 
+            value={draftNumber} 
+            onChange={event => { setDraftNumber(event.target.value.replace(/\D/g, '')); setNumberError('') }} 
+            onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing && event.keyCode !== 229) saveNumber() }} 
+          />
+          {numberError && <p className="error-text" role="alert">{numberError}</p>}
+          <button className="primary-button" onClick={saveNumber}>Save</button>
+        </div>
+      </div>
+    )}
+
+    {sent && (
+      <div className="modal-backdrop">
+        <div className="success-modal" role="dialog" aria-modal="true">
+          <div className="success-icon"><CheckIcon size={32} /></div>
+          <p className="eyebrow">SUBMITTED</p>
+          <h2>Uploaded successfully.</h2>
+          <p>Your video has been received.</p>
+          <button className="primary-button" onClick={() => setSent(false)}>Done</button>
+        </div>
+      </div>
+    )}
   </main>
 }
