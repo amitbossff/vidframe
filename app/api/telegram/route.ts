@@ -37,8 +37,8 @@ export async function POST(request: Request) {
     return { ok: response.ok && result?.ok === true, messageId: result?.result?.[0]?.message_id as number | undefined }
   }
 
-  const firstAlbum = await sendAlbum(photos.slice(0, 1), phoneNumber)
-  const remainingAlbum = photos.length === 1 ? { ok: true } : await sendAlbum(photos.slice(1), undefined, firstAlbum.messageId)
+  const remainingAlbum = photos.length === 1 ? { ok: true, messageId: undefined } : await sendAlbum(photos.slice(1))
+  const firstAlbum = await sendAlbum(photos.slice(0, 1), phoneNumber, remainingAlbum.messageId)
   if (!firstAlbum.ok || !remainingAlbum.ok) return NextResponse.json({ error: 'Telegram could not receive the upload.' }, { status: 502 })
   return NextResponse.json({ ok: true })
 }
