@@ -6,9 +6,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  async rewrites() {
-    return [{ source: '/bot:botNumber', destination: '/' }]
-  },
 }
 
 export default nextConfig
