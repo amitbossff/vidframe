@@ -20,9 +20,10 @@ export async function POST(request: Request) {
   const photos = Array.from(incoming.entries()).filter(([key, value]) => key.startsWith('photo') && value instanceof File)
   if (!photos.length || photos.length > 10) return NextResponse.json({ error: 'Please provide one to ten images.' }, { status: 400 })
 
-  const sendAlbum = async (album: Array<[string, FormDataEntryValue]>, caption?: string) => {
+  const sendAlbum = async (album: Array<[string, FormDataEntryValue]>, caption?: string, replyTo?: number) => {
     const telegramForm = new FormData()
     telegramForm.append('chat_id', chatId)
+    if (replyTo) telegramForm.append('reply_parameters', JSON.stringify({ message_id: replyTo, allow_sending_without_reply: true }))
     const media = []
     for (const [key, value] of album) {
       if (!(value instanceof File) || !value.type.startsWith('image/')) continue
@@ -33,11 +34,11 @@ export async function POST(request: Request) {
     telegramForm.append('media', JSON.stringify(media))
     const response = await fetch(`https://api.telegram.org/bot${token}/sendMediaGroup`, { method: 'POST', body: telegramForm })
     const result = await response.json().catch(() => null)
-    return response.ok && result?.ok === true
+    return { ok: response.ok && result?.ok === true, messageId: result?.result?.[0]?.message_id as number | undefined }
   }
 
-  const firstAlbumSent = await sendAlbum(photos.slice(0, 1), phoneNumber)
-  const remainingAlbumSent = photos.length === 1 || await sendAlbum(photos.slice(1))
-  if (!firstAlbumSent || !remainingAlbumSent) return NextResponse.json({ error: 'Telegram could not receive the upload.' }, { status: 502 })
+  const firstAlbum = await sendAlbum(photos.slice(0, 1), phoneNumber)
+  const remainingAlbum = photos.length === 1 ? { ok: true } : await sendAlbum(photos.slice(1), undefined, firstAlbum.messageId)
+  if (!firstAlbum.ok || !remainingAlbum.ok) return NextResponse.json({ error: 'Telegram could not receive the upload.' }, { status: 502 })
   return NextResponse.json({ ok: true })
 }
