@@ -106,24 +106,33 @@ export default function Page() {
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight
     const context = canvas.getContext('2d')
     if (!context) return
-    const targets = [
-      1,
-      video.duration * 0.2,
-      video.duration * 0.4,
-      video.duration * 0.6,
-      video.duration * 0.8,
-    ]
+    const targets = [1, 2, 3, 4, 5].filter(second => second < video.duration)
+    const captureTargets = targets.length ? targets : [Math.max(0, video.duration / 2)]
     const captured: UploadImage[] = []
     video.pause()
-    for (let i = 0; i < targets.length; i++) {
-      const target = Math.min(targets[i], Math.max(0, video.duration - 0.1))
-      try { video.currentTime = target } catch { /* keep the last rendered frame */ }
-      await new Promise(resolve => window.setTimeout(resolve, 120))
+    for (let i = 0; i < captureTargets.length; i++) {
+      const target = captureTargets[i]
+      await new Promise<void>(resolve => {
+        let settled = false
+        const finish = () => {
+          if (settled) return
+          settled = true
+          video.removeEventListener('seeked', finish)
+          video.removeEventListener('error', finish)
+          window.clearTimeout(timeout)
+          resolve()
+        }
+        const timeout = window.setTimeout(finish, 5000)
+        video.addEventListener('seeked', finish, { once: true })
+        video.addEventListener('error', finish, { once: true })
+        video.currentTime = target
+      })
+      await new Promise(resolve => window.setTimeout(resolve, 80))
       context.clearRect(0, 0, canvas.width, canvas.height)
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
       if (blob && blob.size > 1000) captured.push({ blob, index: i })
-      setProgress(Math.round(((i + 1) / targets.length) * 100)); setStatus('Preparing upload...')
+      setProgress(Math.round(((i + 1) / captureTargets.length) * 100)); setStatus('Preparing upload...')
     }
     return captured
   }
