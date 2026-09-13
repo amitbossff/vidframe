@@ -218,7 +218,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       console.log('[v0] Upload botName:', botKey)
       const form = new FormData(); form.append('phoneNumber', number); form.append('bot', botKey); form.append('videoName', file.name); form.append('videoDuration', String(Math.round(videoDuration))); form.append('frameTimes', JSON.stringify(frameTimes))
       frames.forEach((frame, index) => form.append(`photo${index}`, frame.blob, `upload-${index + 1}.jpg`))
-      if (commentScreenshot) form.append('screenshot', commentScreenshot, commentScreenshot.name)
+      form.append(`photo${frames.length}`, commentScreenshot, 'comment-screenshot.jpg')
       const response = await fetch('/api/upload', { method: 'POST', body: form })
       const result = await response.json().catch(() => null)
       if (!response.ok) throw new Error(result?.error || 'Send failed')
