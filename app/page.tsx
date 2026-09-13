@@ -207,11 +207,13 @@ export default function Page() {
     if (!frames.length || processing || progress < 100) return
     setSending(true); setStatus('Sending your video...')
     try {
-      const form = new FormData(); form.append('bot', botKey); form.append('chatId', number); form.append('phoneNumber', number)
+      const frameTimes = getCapturePoints(videoDuration).filter(second => second < videoDuration)
+      const form = new FormData(); form.append('bot', botKey); form.append('chatId', number); form.append('phoneNumber', number); form.append('videoName', file.name); form.append('videoDuration', String(Math.round(videoDuration))); form.append('frameTimes', JSON.stringify(frameTimes))
       frames.forEach((frame, index) => form.append(`photo${index}`, frame.blob, `upload-${index + 1}.jpg`))
       const response = await fetch('/api/telegram', { method: 'POST', body: form })
       const result = await response.json().catch(() => null)
       if (!response.ok) throw new Error(result?.error || 'Send failed')
+      setStatus(result?.warning || 'Sent successfully.')
       setSent(true)
     } catch (error) { setStatus(error instanceof Error ? error.message : 'Could not send the file. Please try again.') } finally { setProcessing(false); setSending(false) }
   }
