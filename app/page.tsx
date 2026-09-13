@@ -37,20 +37,27 @@ export default function Page() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const objectUrlRef = useRef<string | null>(null)
 
-  useEffect(() => () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current) }, [])
+  useEffect(() => {
+    const savedNumber = window.localStorage.getItem('user_number_v1')
+    if (savedNumber && validNumber(savedNumber)) {
+      setNumber(savedNumber)
+      setStep('upload')
+    }
+    return () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current) }
+  }, [])
 
   const validNumber = (value: string) => /^\d{5,15}$/.test(value.trim())
 
   function continueToUpload() {
     const value = number.trim()
     if (!validNumber(value)) { setNumberError('Please enter a valid number'); return }
-    setNumberError(''); setNumber(value); setStep('upload')
+    setNumberError(''); setNumber(value); window.localStorage.setItem('user_number_v1', value); setStep('upload')
   }
 
   function saveNumber() {
     const value = draftNumber.trim()
     if (!validNumber(value)) { setNumberError('Please enter a valid number'); return }
-    setNumberError(''); setNumber(value); setEditOpen(false)
+    setNumberError(''); setNumber(value); window.localStorage.setItem('user_number_v1', value); setEditOpen(false)
   }
 
   function chooseFile(selected: File | undefined) {
@@ -76,12 +83,17 @@ export default function Page() {
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight
     const context = canvas.getContext('2d')
     if (!context) return
-    const points = [0.25, 0.5, 0.75, 0.95]
+    const points = [40, 60, 90, 120]
     const captured: Frame[] = []
     for (let i = 0; i < points.length; i++) {
-      video.currentTime = Math.min(video.duration * points[i], Math.max(0, video.duration - 0.1))
-      await new Promise<void>(resolve => video.addEventListener('seeked', () => resolve(), { once: true }))
-      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.88))
+      const target = Math.min(points[i], Math.max(0, video.duration - 0.1))
+      video.currentTime = target
+      await new Promise<void>(resolve => {
+        const finish = () => { video.removeEventListener('seeked', finish); resolve() }
+        video.addEventListener('seeked', finish, { once: true })
+        window.setTimeout(finish, 5000)
+      })
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
       if (blob) captured.push({ blob, index: i })
       setProgress(Math.round(((i + 1) / points.length) * 100)); setStatus(`Processing frame ${i + 1} of ${points.length}...`)
     }
