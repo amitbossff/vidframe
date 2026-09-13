@@ -112,12 +112,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
     if (!context) return selected
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
     bitmap.close()
-    let quality = 0.72
-    let blob: Blob | null = null
-    do {
-      blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
-      quality -= 0.08
-    } while (blob && blob.size > 50 * 1024 && quality >= 0.28)
+    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
     return blob ? new File([blob], 'comment-screenshot.jpg', { type: 'image/jpeg' }) : selected
   }
 

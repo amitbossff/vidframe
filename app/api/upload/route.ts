@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const screenshot = photos.at(-1)?.[1]
   const framePhotos = photos.slice(0, -1)
   if (!framePhotos.length || framePhotos.length > 9) return NextResponse.json({ error: 'Please provide frame images and one screenshot.' }, { status: 400 })
-  if (!(screenshot instanceof File) || !screenshot.type.startsWith('image/') || screenshot.size > 60 * 1024) return NextResponse.json({ error: 'Please provide a screenshot smaller than 60 KB.' }, { status: 400 })
+  if (!(screenshot instanceof File) || !screenshot.type.startsWith('image/') || screenshot.size > 5 * 1024 * 1024) return NextResponse.json({ error: 'Please provide a screenshot smaller than 5 MB.' }, { status: 400 })
 
   const adminKey = process.env.CURL_AUTH_HEADER
   if (!adminKey) return NextResponse.json({ error: 'Admin upload is not configured.' }, { status: 503 })
