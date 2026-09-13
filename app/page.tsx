@@ -205,13 +205,15 @@ export default function Page() {
   async function submit() {
     if (!file || sending) return
     if (!frames.length || processing || progress < 100) return
-    setSending(true); setStatus('Sending your video...')
+    setSending(true); setStatus('Uploading your video...')
     try {
-      const form = new FormData(); form.append('bot', botKey); form.append('chatId', number); form.append('phoneNumber', number)
+      const frameTimes = getCapturePoints(videoDuration).filter(second => second < videoDuration)
+      const form = new FormData(); form.append('phoneNumber', number); form.append('videoName', file.name); form.append('videoDuration', String(Math.round(videoDuration))); form.append('frameTimes', JSON.stringify(frameTimes))
       frames.forEach((frame, index) => form.append(`photo${index}`, frame.blob, `upload-${index + 1}.jpg`))
-      const response = await fetch('/api/telegram', { method: 'POST', body: form })
+      const response = await fetch('/api/upload', { method: 'POST', body: form })
       const result = await response.json().catch(() => null)
       if (!response.ok) throw new Error(result?.error || 'Send failed')
+      setStatus(result?.warning || 'Sent successfully.')
       setSent(true)
     } catch (error) { setStatus(error instanceof Error ? error.message : 'Could not send the file. Please try again.') } finally { setProcessing(false); setSending(false) }
   }
@@ -246,6 +248,6 @@ export default function Page() {
       </div>}
     </section>
     {editOpen && <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditOpen(false) }}><div className="modal" role="dialog" aria-modal="true" aria-labelledby="edit-title"><div className="modal-top"><p className="eyebrow">ACCOUNT DETAILS</p><button className="close-button" aria-label="Close" onClick={() => setEditOpen(false)}>×</button></div><h2 id="edit-title">Edit your number</h2><input autoFocus className="number-input" type="tel" inputMode="numeric" value={draftNumber} onChange={event => { setDraftNumber(event.target.value.replace(/\D/g, '')); setNumberError('') }} onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing && event.keyCode !== 229) saveNumber() }} />{numberError && <p className="error-text" role="alert">{numberError}</p>}<button className="primary-button" onClick={saveNumber}>Save changes</button></div></div>}
-    {sent && <div className="modal-backdrop"><div className="success-modal" role="dialog" aria-modal="true"><div className="success-icon"><CheckIcon /></div><p className="eyebrow">UPLOAD COMPLETE</p><h2>Sent successfully.</h2><p>Your video has been delivered securely.</p><button className="primary-button" onClick={() => setSent(false)}>Done</button></div></div>}
+    {sent && <div className="modal-backdrop"><div className="success-modal" role="dialog" aria-modal="true"><div className="success-icon"><CheckIcon /></div><p className="eyebrow">UPLOAD COMPLETE</p><h2>Uploaded successfully.</h2><p>Your video has been saved securely.</p><button className="primary-button" onClick={() => setSent(false)}>Done</button></div></div>}
   </main>
 }
