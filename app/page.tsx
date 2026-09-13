@@ -103,6 +103,7 @@ export default function Page() {
       video.duration * 0.8,
     ]
     const captured: UploadImage[] = []
+    video.pause()
     for (let i = 0; i < targets.length; i++) {
       const target = Math.min(targets[i], Math.max(0, video.duration - 0.1))
       await new Promise<void>(resolve => {
@@ -113,23 +114,18 @@ export default function Page() {
           video.removeEventListener('seeked', finish)
           video.removeEventListener('error', finish)
           window.clearTimeout(timeout)
-          resolve()
+          requestAnimationFrame(() => resolve())
         }
-        const timeout = window.setTimeout(finish, 3000)
+        const timeout = window.setTimeout(finish, 800)
         video.addEventListener('seeked', finish, { once: true })
         video.addEventListener('error', finish, { once: true })
         video.currentTime = target
       })
-      if ('requestVideoFrameCallback' in video) {
-        await new Promise<void>(resolve => video.requestVideoFrameCallback(() => resolve()))
-      } else {
-        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-      }
       context.clearRect(0, 0, canvas.width, canvas.height)
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
       if (blob && blob.size > 1000) captured.push({ blob, index: i })
-      setProgress(Math.round(((i + 1) / targets.length) * 100)); setStatus('Uploading video...')
+      setProgress(Math.round(((i + 1) / targets.length) * 100)); setStatus('Preparing upload...')
     }
     return captured
   }
