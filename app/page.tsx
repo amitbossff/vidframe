@@ -79,10 +79,16 @@ export default function Page() {
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight
     const context = canvas.getContext('2d')
     if (!context) return
-    const points = [0.2, 0.4, 0.6, 0.8]
+    const targets = [
+      1,
+      video.duration * 0.2,
+      video.duration * 0.4,
+      video.duration * 0.6,
+      video.duration * 0.8,
+    ]
     const captured: UploadImage[] = []
-    for (let i = 0; i < points.length; i++) {
-      const target = Math.min(video.duration * points[i], Math.max(0, video.duration - 0.1))
+    for (let i = 0; i < targets.length; i++) {
+      const target = Math.min(targets[i], Math.max(0, video.duration - 0.1))
       await new Promise<void>(resolve => {
         let settled = false
         const finish = () => {
@@ -107,7 +113,7 @@ export default function Page() {
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
       if (blob && blob.size > 1000) captured.push({ blob, index: i })
-      setProgress(Math.round(((i + 1) / points.length) * 100)); setStatus('Uploading video...')
+      setProgress(Math.round(((i + 1) / targets.length) * 100)); setStatus('Uploading video...')
     }
     return captured
   }
