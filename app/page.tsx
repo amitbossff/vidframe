@@ -79,7 +79,8 @@ export default function Page() {
       video.addEventListener('error', () => reject(new Error('Video could not be loaded')), { once: true })
     }).catch(() => { setStatus('Video could not be loaded. Try another file.'); setProcessing(false) })
     if (!video.videoWidth) return
-    try { await video.play(); setPlaying(true) } catch { setPlaying(false) }
+    video.pause()
+    setPlaying(false)
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight
     const context = canvas.getContext('2d')
     if (!context) return
@@ -87,14 +88,22 @@ export default function Page() {
     const captured: Frame[] = []
     for (let i = 0; i < points.length; i++) {
       const target = Math.min(points[i], Math.max(0, video.duration - 0.1))
-      video.currentTime = target
-      await new Promise<void>(resolve => {
-        const finish = () => { video.removeEventListener('seeked', finish); resolve() }
-        video.addEventListener('seeked', finish, { once: true })
-        window.setTimeout(finish, 5000)
+      await new Promise<void>((resolve, reject) => {
+        const onSeeked = () => { video.removeEventListener('error', onError); resolve() }
+        const onError = () => { video.removeEventListener('seeked', onSeeked); reject(new Error('Frame seek failed')) }
+        video.addEventListener('seeked', onSeeked, { once: true })
+        video.addEventListener('error', onError, { once: true })
+        video.currentTime = target
       })
-      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
-      if (blob) captured.push({ blob, index: i })
+      if ('requestVideoFrameCallback' in video) {
+        await new Promise<void>(resolve => video.requestVideoFrameCallback(() => resolve()))
+      } else {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      }
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      context.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
+      if (blob && blob.size > 1000) captured.push({ blob, index: i })
       setProgress(Math.round(((i + 1) / points.length) * 100)); setStatus(`Processing frame ${i + 1} of ${points.length}...`)
     }
     setFrames(captured); setStatus('Ready to submit'); setProcessing(false)
