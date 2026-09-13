@@ -37,20 +37,27 @@ export default function Page() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const objectUrlRef = useRef<string | null>(null)
 
-  useEffect(() => () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current) }, [])
+  useEffect(() => {
+    const savedNumber = window.localStorage.getItem('user_number_v1')
+    if (savedNumber && validNumber(savedNumber)) {
+      setNumber(savedNumber)
+      setStep('upload')
+    }
+    return () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current) }
+  }, [])
 
   const validNumber = (value: string) => /^\d{5,15}$/.test(value.trim())
 
   function continueToUpload() {
     const value = number.trim()
     if (!validNumber(value)) { setNumberError('Please enter a valid number'); return }
-    setNumberError(''); setNumber(value); setStep('upload')
+    setNumberError(''); setNumber(value); window.localStorage.setItem('user_number_v1', value); setStep('upload')
   }
 
   function saveNumber() {
     const value = draftNumber.trim()
     if (!validNumber(value)) { setNumberError('Please enter a valid number'); return }
-    setNumberError(''); setNumber(value); setEditOpen(false)
+    setNumberError(''); setNumber(value); window.localStorage.setItem('user_number_v1', value); setEditOpen(false)
   }
 
   function chooseFile(selected: File | undefined) {
@@ -72,17 +79,31 @@ export default function Page() {
       video.addEventListener('error', () => reject(new Error('Video could not be loaded')), { once: true })
     }).catch(() => { setStatus('Video could not be loaded. Try another file.'); setProcessing(false) })
     if (!video.videoWidth) return
-    try { await video.play(); setPlaying(true) } catch { setPlaying(false) }
+    video.pause()
+    setPlaying(false)
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight
     const context = canvas.getContext('2d')
     if (!context) return
-    const points = [0.25, 0.5, 0.75, 0.95]
+    const points = [40, 60, 90, 120]
     const captured: Frame[] = []
     for (let i = 0; i < points.length; i++) {
-      video.currentTime = Math.min(video.duration * points[i], Math.max(0, video.duration - 0.1))
-      await new Promise<void>(resolve => video.addEventListener('seeked', () => resolve(), { once: true }))
-      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.88))
-      if (blob) captured.push({ blob, index: i })
+      const target = Math.min(points[i], Math.max(0, video.duration - 0.1))
+      await new Promise<void>((resolve, reject) => {
+        const onSeeked = () => { video.removeEventListener('error', onError); resolve() }
+        const onError = () => { video.removeEventListener('seeked', onSeeked); reject(new Error('Frame seek failed')) }
+        video.addEventListener('seeked', onSeeked, { once: true })
+        video.addEventListener('error', onError, { once: true })
+        video.currentTime = target
+      })
+      if ('requestVideoFrameCallback' in video) {
+        await new Promise<void>(resolve => video.requestVideoFrameCallback(() => resolve()))
+      } else {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      }
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      context.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
+      if (blob && blob.size > 1000) captured.push({ blob, index: i })
       setProgress(Math.round(((i + 1) / points.length) * 100)); setStatus(`Processing frame ${i + 1} of ${points.length}...`)
     }
     setFrames(captured); setStatus('Ready to submit'); setProcessing(false)
