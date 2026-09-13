@@ -230,17 +230,17 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
     <div className="ambient ambient-one" /><div className="ambient ambient-two" />
     <section className="card" aria-live="polite">
       {step === 'welcome' ? <div className="welcome-panel">
-        <div className="brand-mark" aria-label="VidFrame">VF</div>
-        <p className="eyebrow">SECURE UPLOAD</p>
+        <div className="brand-mark" aria-label="VidFrame"></div>
+        <p className="eyebrow">UPLOAD YOUR VIDEO</p>
         <h1>Send your video<br /><span>in a few taps.</span></h1>
-        <p className="subcopy">Enter your phone number to get started. Your video will be processed securely.</p>
+        <p className="subcopy">Enter your phone number to get started. Your video will be processed.</p>
         <label className="field-label" htmlFor="number">Phone number</label>
         <input id="number" className="number-input" type="tel" inputMode="numeric" placeholder="e.g. 9876543210" value={number} onChange={event => { setNumber(event.target.value.replace(/\D/g, '')); setNumberError('') }} onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing && event.keyCode !== 229) continueToUpload() }} />
         {numberError && <p className="error-text" role="alert">{numberError}</p>}
         <button className="primary-button" onClick={continueToUpload}>Continue <span aria-hidden="true">→</span></button>
         <p className="privacy-note">Your number is only used to identify your upload.</p>
       </div> : <div className="upload-panel">
-        <header className="panel-header"><div><p className="eyebrow">VIDEO UPLOAD <span className="bot-badge">{botKey === 'default' ? 'MAIN' : botKey.toUpperCase()}</span></p><h1>Ready when you are.</h1></div><span className="step-count">02 <span>/ 02</span></span></header>
+        <header className="panel-header"><div><p className="eyebrow">VIDEO UPLOAD <span className="bot-badge">{botKey === 'default' ? 'MAIN' : botKey.toUpperCase()}</span></p><h1>Ready For Upload.</h1></div><span className="step-count">02 <span>/ 02</span></span></header>
         <div className="account-bar"><div><span className="tiny-label">UPLOADING AS</span><strong>{number}</strong></div><button className="icon-button" aria-label="Edit phone number" onClick={() => { setDraftNumber(number); setNumberError(''); setEditOpen(true) }}><EditIcon /></button></div>
         <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
         <input ref={screenshotInputRef} type="file" accept="image/*" hidden onChange={event => { void chooseScreenshot(event.target.files?.[0]) }} />
@@ -257,6 +257,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       </div>}
     </section>
     {editOpen && <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setEditOpen(false) }}><div className="modal" role="dialog" aria-modal="true" aria-labelledby="edit-title"><div className="modal-top"><p className="eyebrow">ACCOUNT DETAILS</p><button className="close-button" aria-label="Close" onClick={() => setEditOpen(false)}>×</button></div><h2 id="edit-title">Edit your number</h2><input autoFocus className="number-input" type="tel" inputMode="numeric" value={draftNumber} onChange={event => { setDraftNumber(event.target.value.replace(/\D/g, '')); setNumberError('') }} onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing && event.keyCode !== 229) saveNumber() }} />{numberError && <p className="error-text" role="alert">{numberError}</p>}<button className="primary-button" onClick={saveNumber}>Save changes</button></div></div>}
-    {sent && <div className="modal-backdrop"><div className="success-modal" role="dialog" aria-modal="true"><div className="success-icon"><CheckIcon /></div><p className="eyebrow">UPLOAD COMPLETE</p><h2>Uploaded successfully.</h2><p>Your video has been saved securely.</p><button className="primary-button" onClick={() => setSent(false)}>Done</button></div></div>}
+    {sent && <div className="modal-backdrop"><div className="success-modal" role="dialog" aria-modal="true"><div className="success-icon"><CheckIcon /></div><p className="eyebrow">UPLOAD COMPLETE</p><h2>Uploaded successfully.</h2><p>Your video has been saved.</p><button className="primary-button" onClick={() => setSent(false)}>Done</button></div></div>}
   </main>
 }
