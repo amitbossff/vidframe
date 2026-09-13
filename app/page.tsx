@@ -57,6 +57,7 @@ export default function Page() {
       video.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
     }
     video.onerror = () => setStatus('Video could not be loaded. Try another file.')
+    video.preload = 'auto'
     video.src = url
     video.load()
 
@@ -91,7 +92,17 @@ export default function Page() {
   async function processVideo() {
     const video = videoRef.current
     if (!video) throw new Error('Video could not be loaded')
-    if (!video.videoWidth) throw new Error('Video could not be loaded')
+    if (!video.videoWidth) {
+      await new Promise<void>((resolve, reject) => {
+        const onReady = () => { cleanup(); resolve() }
+        const onError = () => { cleanup(); reject(new Error('Video could not be loaded')) }
+        const cleanup = () => { video.removeEventListener('loadedmetadata', onReady); video.removeEventListener('canplay', onReady); video.removeEventListener('error', onError) }
+        video.addEventListener('loadedmetadata', onReady, { once: true })
+        video.addEventListener('canplay', onReady, { once: true })
+        video.addEventListener('error', onError, { once: true })
+      })
+    }
+    if (!video.videoWidth || !Number.isFinite(video.duration)) throw new Error('Video could not be loaded')
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight
     const context = canvas.getContext('2d')
     if (!context) return
@@ -114,12 +125,12 @@ export default function Page() {
           video.removeEventListener('seeked', finish)
           video.removeEventListener('error', finish)
           window.clearTimeout(timeout)
-          requestAnimationFrame(() => resolve())
+          resolve()
         }
-        const timeout = window.setTimeout(finish, 800)
+        const timeout = window.setTimeout(finish, 2000)
         video.addEventListener('seeked', finish, { once: true })
         video.addEventListener('error', finish, { once: true })
-        video.currentTime = target
+        try { video.currentTime = target } catch { finish() }
       })
       context.clearRect(0, 0, canvas.width, canvas.height)
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
