@@ -291,7 +291,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       
       <div className="card">
         {step === 'welcome' ? (
-          /* ============ WELCOME ============ */
           <div className="welcome">
             <div className="welcome-icon">
               <Icons.Upload />
@@ -326,7 +325,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
             </div>
           </div>
         ) : (
-          /* ============ UPLOAD ============ */
           <div className="upload">
             <header className="top">
               <div className="top-left">
@@ -346,7 +344,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
             <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
             <input ref={screenshotInputRef} type="file" accept="image/*" hidden onChange={e => { void chooseScreenshot(e.target.files?.[0]) }} />
 
-            {/* ============ PICKER GRID — हमेशा दिखेगा ============ */}
             <div className="picker-row">
               <button
                 className={`pick ${file ? 'done' : ''} ${dragging ? 'dragging' : ''}`}
@@ -378,7 +375,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
               </button>
             </div>
 
-            {/* ============ PREVIEW (सिर्फ video selected होने पर) ============ */}
             {file && (
               <>
                 <div className="preview">
@@ -418,7 +414,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
                     <div className="ready-check"><Icons.Check /></div>
                     <div>
                       <strong>Ready to submit</strong>
-                      <span>{frames.length} frames captured</span>
+                      <span>All set</span>
                     </div>
                   </div>
                 )}
@@ -426,7 +422,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
                 {processing && !videoReady && (
                   <div className="progress">
                     <div className="progress-head">
-                      <span>Preparing video</span>
+                      <span>Preparing</span>
                       <strong>{progress}%</strong>
                     </div>
                     <div className="progress-bar">
