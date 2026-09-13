@@ -48,6 +48,24 @@ export default function Page() {
     return () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current) }
   }, [])
 
+  useEffect(() => {
+    const video = videoRef.current
+    const url = objectUrlRef.current
+    if (!video || !file || !url) return
+
+    video.onloadeddata = () => {
+      video.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+    }
+    video.onerror = () => setStatus('Video could not be loaded. Try another file.')
+    video.src = url
+    video.load()
+
+    return () => {
+      video.onloadeddata = null
+      video.onerror = null
+    }
+  }, [file])
+
   const validNumber = (value: string) => /^\d{10}$/.test(value.trim())
 
   function continueToUpload() {
@@ -68,8 +86,6 @@ export default function Page() {
     setFile(selected); setFrames([]); setProgress(0); setProcessing(false); setStatus('Ready to send')
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
     const url = URL.createObjectURL(selected); objectUrlRef.current = url
-    const video = videoRef.current
-    if (video) { video.src = url; video.load(); video.onloadeddata = () => { video.play().then(() => setPlaying(true)).catch(() => setPlaying(false)) } }
   }
 
   async function processVideo() {
