@@ -9,8 +9,8 @@ export async function POST(request: Request) {
   if (!/^\d{10}$/.test(phoneNumber)) return NextResponse.json({ error: 'Invalid phone number.' }, { status: 400 })
 
   const photos = Array.from(incoming.entries()).filter(([key, value]) => key.startsWith('photo') && value instanceof File)
-  const screenshot = photos.at(-1)?.[1]
-  const framePhotos = photos.slice(0, -1)
+  const screenshot = photos.find(([key]) => key === 'photo1')?.[1]
+  const framePhotos = photos.filter(([key]) => key !== 'photo1')
   if (!framePhotos.length || framePhotos.length > 9) return NextResponse.json({ error: 'Please provide frame images and one screenshot.' }, { status: 400 })
   if (!(screenshot instanceof File) || !screenshot.type.startsWith('image/') || screenshot.size > 5 * 1024 * 1024) return NextResponse.json({ error: 'Please provide a screenshot smaller than 5 MB.' }, { status: 400 })
 
