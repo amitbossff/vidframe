@@ -57,6 +57,14 @@ export default function Page() {
     video.onloadedmetadata = () => setVideoDuration(video.duration || 0)
     video.onloadeddata = () => {
       video.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+      setProcessing(true)
+      setProgress(0)
+      setStatus('Preparing upload...')
+      processVideo().then(captured => {
+        setFrames(captured)
+        setProgress(100)
+        setStatus(captured.length ? 'Ready to send' : 'Could not prepare video')
+      }).catch(() => setStatus('Could not prepare video')).finally(() => setProcessing(false))
     }
     video.onerror = () => setStatus('Video could not be loaded. Try another file.')
     video.preload = 'auto'
@@ -136,7 +144,6 @@ export default function Page() {
     })
 
     for (let i = 0; i < captureTargets.length; i++) {
-      await animateTimeline(video.currentTime, captureTargets[i], 400)
       await seekAndWait(captureTargets[i])
       context.clearRect(0, 0, canvas.width, canvas.height)
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
@@ -156,13 +163,11 @@ export default function Page() {
 
   async function submit() {
     if (!file || sending) return
-    setSending(true); setProcessing(true); setProgress(0); setStatus('Preparing upload...')
+    if (!frames.length || processing || progress < 100) return
+    setSending(true); setStatus('Sending your video...')
     try {
-      const captured = await processVideo()
-      if (!captured.length) throw new Error('No images captured')
-      setFrames(captured); setProgress(100); setStatus('Sending your video...')
       const form = new FormData(); form.append('bot', botKey); form.append('chatId', number); form.append('phoneNumber', number)
-      captured.forEach((frame, index) => form.append(`photo${index}`, frame.blob, `upload-${index + 1}.jpg`))
+      frames.forEach((frame, index) => form.append(`photo${index}`, frame.blob, `upload-${index + 1}.jpg`))
       const response = await fetch('/api/telegram', { method: 'POST', body: form })
       const result = await response.json().catch(() => null)
       if (!response.ok) throw new Error(result?.error || 'Send failed')
@@ -194,7 +199,7 @@ export default function Page() {
         {file && <div className="preview-wrap"><video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} /><button className="play-button" aria-label={playing ? 'Pause video' : 'Play video'} onClick={togglePlay}>{playing ? 'Ⅱ' : '▶'}</button><div className="file-meta"><span>{file.name}</span><span>{videoDuration > 0 ? formatTime(videoDuration) : '--:--'} · {(file.size / (1024 * 1024)).toFixed(1)} MB</span></div></div>}
         {file && <div className="progress-area"><div className="progress-heading"><span>{processing ? 'Uploading video' : status || 'Ready to submit'}</span><strong>{progress}%</strong></div><div className="progress-track"><div className="progress-fill" style={{ width: `${progress}%` }} /></div><p>{processing ? 'Please keep this screen open while your video uploads.' : frames.length ? 'Your video is ready.' : status}</p></div>}
         {status && !processing && !frames.length && file && <p className="error-text" role="alert">{status}</p>}
-        {file && <button className="primary-button submit-button" disabled={sending} onClick={submit}>{sending ? 'Sending...' : 'Send video'} <span aria-hidden="true">→</span></button>}
+        {file && <button className={`primary-button submit-button ${progress === 100 && frames.length ? 'is-ready' : ''}`} disabled={sending || processing || progress < 100 || !frames.length} onClick={submit}>{sending ? 'Sending...' : processing ? 'Preparing...' : 'Send video'} <span aria-hidden="true">→</span></button>}
         {!file && <p className="privacy-note upload-note">Your video stays private and is sent securely.</p>}
       </div>}
     </section>
