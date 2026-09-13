@@ -117,21 +117,8 @@ export default function Page() {
     video.pause()
     for (let i = 0; i < targets.length; i++) {
       const target = Math.min(targets[i], Math.max(0, video.duration - 0.1))
-      await new Promise<void>(resolve => {
-        let settled = false
-        const finish = () => {
-          if (settled) return
-          settled = true
-          video.removeEventListener('seeked', finish)
-          video.removeEventListener('error', finish)
-          window.clearTimeout(timeout)
-          resolve()
-        }
-        const timeout = window.setTimeout(finish, 2000)
-        video.addEventListener('seeked', finish, { once: true })
-        video.addEventListener('error', finish, { once: true })
-        try { video.currentTime = target } catch { finish() }
-      })
+      try { video.currentTime = target } catch { /* keep the last rendered frame */ }
+      await new Promise(resolve => window.setTimeout(resolve, 120))
       context.clearRect(0, 0, canvas.width, canvas.height)
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
