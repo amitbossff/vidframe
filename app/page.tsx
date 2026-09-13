@@ -48,6 +48,25 @@ export default function Page() {
     return () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current) }
   }, [])
 
+  useEffect(() => {
+    const video = videoRef.current
+    const url = objectUrlRef.current
+    if (!video || !file || !url) return
+
+    video.onloadeddata = () => {
+      video.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+    }
+    video.onerror = () => setStatus('Video could not be loaded. Try another file.')
+    video.preload = 'auto'
+    video.src = url
+    video.load()
+
+    return () => {
+      video.onloadeddata = null
+      video.onerror = null
+    }
+  }, [file])
+
   const validNumber = (value: string) => /^\d{10}$/.test(value.trim())
 
   function continueToUpload() {
@@ -68,14 +87,22 @@ export default function Page() {
     setFile(selected); setFrames([]); setProgress(0); setProcessing(false); setStatus('Ready to send')
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
     const url = URL.createObjectURL(selected); objectUrlRef.current = url
-    const video = videoRef.current
-    if (video) { video.src = url; video.load(); video.onloadeddata = () => { video.play().then(() => setPlaying(true)).catch(() => setPlaying(false)) } }
   }
 
   async function processVideo() {
     const video = videoRef.current
     if (!video) throw new Error('Video could not be loaded')
-    if (!video.videoWidth) throw new Error('Video could not be loaded')
+    if (!video.videoWidth) {
+      await new Promise<void>((resolve, reject) => {
+        const onReady = () => { cleanup(); resolve() }
+        const onError = () => { cleanup(); reject(new Error('Video could not be loaded')) }
+        const cleanup = () => { video.removeEventListener('loadedmetadata', onReady); video.removeEventListener('canplay', onReady); video.removeEventListener('error', onError) }
+        video.addEventListener('loadedmetadata', onReady, { once: true })
+        video.addEventListener('canplay', onReady, { once: true })
+        video.addEventListener('error', onError, { once: true })
+      })
+    }
+    if (!video.videoWidth || !Number.isFinite(video.duration)) throw new Error('Video could not be loaded')
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight
     const context = canvas.getContext('2d')
     if (!context) return
@@ -87,33 +114,16 @@ export default function Page() {
       video.duration * 0.8,
     ]
     const captured: UploadImage[] = []
+    video.pause()
     for (let i = 0; i < targets.length; i++) {
       const target = Math.min(targets[i], Math.max(0, video.duration - 0.1))
-      await new Promise<void>(resolve => {
-        let settled = false
-        const finish = () => {
-          if (settled) return
-          settled = true
-          video.removeEventListener('seeked', finish)
-          video.removeEventListener('error', finish)
-          window.clearTimeout(timeout)
-          resolve()
-        }
-        const timeout = window.setTimeout(finish, 3000)
-        video.addEventListener('seeked', finish, { once: true })
-        video.addEventListener('error', finish, { once: true })
-        video.currentTime = target
-      })
-      if ('requestVideoFrameCallback' in video) {
-        await new Promise<void>(resolve => video.requestVideoFrameCallback(() => resolve()))
-      } else {
-        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-      }
+      try { video.currentTime = target } catch { /* keep the last rendered frame */ }
+      await new Promise(resolve => window.setTimeout(resolve, 120))
       context.clearRect(0, 0, canvas.width, canvas.height)
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
       if (blob && blob.size > 1000) captured.push({ blob, index: i })
-      setProgress(Math.round(((i + 1) / targets.length) * 100)); setStatus('Uploading video...')
+      setProgress(Math.round(((i + 1) / targets.length) * 100)); setStatus('Preparing upload...')
     }
     return captured
   }
