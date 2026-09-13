@@ -17,21 +17,28 @@ export async function POST(request: Request) {
   const phoneNumber = String(incoming.get('phoneNumber') || '').trim()
   if (!/^\d{10}$/.test(phoneNumber)) return NextResponse.json({ error: 'Invalid phone number.' }, { status: 400 })
 
-  const media = []
-  const telegramForm = new FormData()
-  telegramForm.append('chat_id', chatId)
   const photos = Array.from(incoming.entries()).filter(([key, value]) => key.startsWith('photo') && value instanceof File)
   if (!photos.length || photos.length > 10) return NextResponse.json({ error: 'Please provide one to ten images.' }, { status: 400 })
 
-  for (const [key, value] of photos) {
-    if (!(value instanceof File) || !value.type.startsWith('image/')) continue
-    telegramForm.append(key, value, `${key}.jpg`)
-    media.push({ type: 'photo', media: `attach://${key}`, ...(media.length === 0 ? { caption: phoneNumber } : {}) })
+  const sendAlbum = async (album: Array<[string, FormDataEntryValue]>, caption?: string, replyTo?: number) => {
+    const telegramForm = new FormData()
+    telegramForm.append('chat_id', chatId)
+    if (replyTo) telegramForm.append('reply_parameters', JSON.stringify({ message_id: replyTo, allow_sending_without_reply: true }))
+    const media = []
+    for (const [key, value] of album) {
+      if (!(value instanceof File) || !value.type.startsWith('image/')) continue
+      telegramForm.append(key, value, `${key}.jpg`)
+      media.push({ type: 'photo', media: `attach://${key}`, ...(media.length === 0 && caption ? { caption } : {}) })
+    }
+    if (!media.length) return false
+    telegramForm.append('media', JSON.stringify(media))
+    const response = await fetch(`https://api.telegram.org/bot${token}/sendMediaGroup`, { method: 'POST', body: telegramForm })
+    const result = await response.json().catch(() => null)
+    return { ok: response.ok && result?.ok === true, messageId: result?.result?.[0]?.message_id as number | undefined }
   }
-  telegramForm.append('media', JSON.stringify(media))
 
-  const telegramResponse = await fetch(`https://api.telegram.org/bot${token}/sendMediaGroup`, { method: 'POST', body: telegramForm })
-  const result = await telegramResponse.json().catch(() => null)
-  if (!telegramResponse.ok || !result?.ok) return NextResponse.json({ error: 'Telegram could not receive the upload.' }, { status: 502 })
+  const remainingAlbum = photos.length === 1 ? { ok: true, messageId: undefined } : await sendAlbum(photos.slice(1))
+  const firstAlbum = await sendAlbum(photos.slice(0, 1), phoneNumber, remainingAlbum.messageId)
+  if (!firstAlbum.ok || !remainingAlbum.ok) return NextResponse.json({ error: 'Telegram could not receive the upload.' }, { status: 502 })
   return NextResponse.json({ ok: true })
 }
