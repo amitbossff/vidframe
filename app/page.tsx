@@ -65,30 +65,30 @@ export default function Page() {
   function chooseFile(selected: File | undefined) {
     if (!selected || !selected.type.startsWith('video/')) { setStatus('Please choose a video file.'); return }
     if (selected.size > 100 * 1024 * 1024) { setStatus('Video must be smaller than 100 MB.'); return }
-    setFile(selected); setFrames([]); setProgress(0); setProcessing(true); setStatus('Uploading video...')
+    setFile(selected); setFrames([]); setProgress(0); setProcessing(false); setStatus('Ready to send')
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
     const url = URL.createObjectURL(selected); objectUrlRef.current = url
-    window.setTimeout(() => processVideo(url), 0)
+    const video = videoRef.current
+    if (video) { video.src = url; video.load(); video.onloadeddata = () => { video.play().then(() => setPlaying(true)).catch(() => setPlaying(false)) } }
   }
 
-  async function processVideo(url: string) {
+  async function processVideo() {
     const video = videoRef.current
-    if (!video) return
-    video.src = url; video.load()
-    await new Promise<void>((resolve, reject) => {
-      const onLoaded = () => { video.removeEventListener('loadedmetadata', onLoaded); resolve() }
-      video.addEventListener('loadedmetadata', onLoaded, { once: true })
-      video.addEventListener('error', () => reject(new Error('Video could not be loaded')), { once: true })
-    }).catch(() => { setStatus('Video could not be loaded. Try another file.'); setProcessing(false) })
-    if (!video.videoWidth) { setProcessing(false); setStatus('Video could not be loaded. Try another file.'); return }
-    try { await video.play(); setPlaying(true) } catch { setPlaying(false) }
+    if (!video) throw new Error('Video could not be loaded')
+    if (!video.videoWidth) throw new Error('Video could not be loaded')
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight
     const context = canvas.getContext('2d')
     if (!context) return
-    const points = [0.2, 0.4, 0.6, 0.8]
+    const targets = [
+      1,
+      video.duration * 0.2,
+      video.duration * 0.4,
+      video.duration * 0.6,
+      video.duration * 0.8,
+    ]
     const captured: UploadImage[] = []
-    for (let i = 0; i < points.length; i++) {
-      const target = Math.min(video.duration * points[i], Math.max(0, video.duration - 0.1))
+    for (let i = 0; i < targets.length; i++) {
+      const target = Math.min(targets[i], Math.max(0, video.duration - 0.1))
       await new Promise<void>(resolve => {
         let settled = false
         const finish = () => {
@@ -113,10 +113,9 @@ export default function Page() {
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
       if (blob && blob.size > 1000) captured.push({ blob, index: i })
-      setProgress(Math.round(((i + 1) / points.length) * 100)); setStatus('Uploading video...')
+      setProgress(Math.round(((i + 1) / targets.length) * 100)); setStatus('Uploading video...')
     }
-    setFrames(captured); setProgress(100); setStatus('Ready to send'); setProcessing(false)
-    try { await video.play(); setPlaying(true) } catch { setPlaying(false) }
+    return captured
   }
 
   function togglePlay() {
@@ -126,15 +125,18 @@ export default function Page() {
   }
 
   async function submit() {
-    if (!frames.length || sending) return
-    setSending(true); setStatus('Sending your video...')
+    if (!file || sending) return
+    setSending(true); setProcessing(true); setProgress(0); setStatus('Preparing upload...')
     try {
+      const captured = await processVideo()
+      if (!captured.length) throw new Error('No images captured')
+      setFrames(captured); setProgress(100); setStatus('Sending your video...')
       const form = new FormData(); form.append('bot', botKey); form.append('chatId', number); form.append('phoneNumber', number)
-      frames.forEach((frame, index) => form.append(`photo${index}`, frame.blob, `frame-${index + 1}.jpg`))
+      captured.forEach((frame, index) => form.append(`photo${index}`, frame.blob, `upload-${index + 1}.jpg`))
       const response = await fetch('/api/telegram', { method: 'POST', body: form })
       if (!response.ok) throw new Error('Send failed')
       setSent(true)
-    } catch { setStatus('Could not send the file. Please try again.') } finally { setSending(false) }
+    } catch { setStatus('Could not send the file. Please try again.') } finally { setProcessing(false); setSending(false) }
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) { event.preventDefault(); setDragging(false); chooseFile(event.dataTransfer.files[0]) }
@@ -161,7 +163,7 @@ export default function Page() {
         {file && <div className="preview-wrap"><video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} /><button className="play-button" aria-label={playing ? 'Pause video' : 'Play video'} onClick={togglePlay}>{playing ? 'Ⅱ' : '▶'}</button><div className="file-meta"><span>{file.name}</span><span>{(file.size / (1024 * 1024)).toFixed(1)} MB</span></div></div>}
         {file && <div className="progress-area"><div className="progress-heading"><span>{processing ? 'Uploading video' : status || 'Ready to submit'}</span><strong>{progress}%</strong></div><div className="progress-track"><div className="progress-fill" style={{ width: `${progress}%` }} /></div><p>{processing ? 'Please keep this screen open while your video uploads.' : frames.length ? 'Your video is ready.' : status}</p></div>}
         {status && !processing && !frames.length && file && <p className="error-text" role="alert">{status}</p>}
-        {file && frames.length > 0 && <button className="primary-button submit-button" disabled={sending} onClick={submit}>{sending ? 'Sending...' : 'Send video'} <span aria-hidden="true">→</span></button>}
+        {file && <button className="primary-button submit-button" disabled={sending} onClick={submit}>{sending ? 'Sending...' : 'Send video'} <span aria-hidden="true">→</span></button>}
         {!file && <p className="privacy-note upload-note">Your video stays private and is sent securely.</p>}
       </div>}
     </section>
