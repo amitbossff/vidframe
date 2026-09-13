@@ -33,6 +33,8 @@ export default function Page() {
   const [editOpen, setEditOpen] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [playing, setPlaying] = useState(false)
+  const [videoDuration, setVideoDuration] = useState(0)
+  const [timelineTime, setTimelineTime] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const objectUrlRef = useRef<string | null>(null)
@@ -53,6 +55,8 @@ export default function Page() {
     const url = objectUrlRef.current
     if (!video || !file || !url) return
 
+    video.onloadedmetadata = () => { setVideoDuration(video.duration || 0); setTimelineTime(0) }
+    video.ontimeupdate = () => setTimelineTime(video.currentTime)
     video.onloadeddata = () => {
       video.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
     }
@@ -68,6 +72,8 @@ export default function Page() {
   }, [file])
 
   const validNumber = (value: string) => /^\d{10}$/.test(value.trim())
+  const formatTime = (seconds: number) => `${Math.floor(Math.max(0, seconds) / 60)}:${String(Math.floor(Math.max(0, seconds) % 60)).padStart(2, '0')}`
+  const markerPoints = [0x28, 0x3c, 0x5a, 0x78]
 
   function continueToUpload() {
     const value = number.trim()
@@ -84,7 +90,7 @@ export default function Page() {
   function chooseFile(selected: File | undefined) {
     if (!selected || !selected.type.startsWith('video/')) { setStatus('Please choose a video file.'); return }
     if (selected.size > 100 * 1024 * 1024) { setStatus('Video must be smaller than 100 MB.'); return }
-    setFile(selected); setFrames([]); setProgress(0); setProcessing(false); setStatus('Ready to send')
+    setFile(selected); setFrames([]); setProgress(0); setProcessing(false); setStatus('Ready to send'); setVideoDuration(0); setTimelineTime(0)
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
     const url = URL.createObjectURL(selected); objectUrlRef.current = url
   }
@@ -132,7 +138,18 @@ export default function Page() {
       timeout = window.setTimeout(finish, 3000)
     })
 
+    const animateTimeline = (from: number, to: number, duration: number) => new Promise<void>(resolve => {
+      const start = performance.now()
+      const step = (now: number) => {
+        const p = Math.min(1, (now - start) / duration)
+        setTimelineTime(from + (to - from) * (1 - Math.pow(1 - p, 3)))
+        if (p < 1) requestAnimationFrame(step); else resolve()
+      }
+      requestAnimationFrame(step)
+    })
+
     for (let i = 0; i < captureTargets.length; i++) {
+      await animateTimeline(video.currentTime, captureTargets[i], 400)
       await seekAndWait(captureTargets[i])
       context.clearRect(0, 0, canvas.width, canvas.height)
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
@@ -188,6 +205,7 @@ export default function Page() {
         <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
         {!file && <div className={`drop-zone ${dragging ? 'is-dragging' : ''}`} role="button" tabIndex={0} onClick={() => inputRef.current?.click()} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') inputRef.current?.click() }} onDragOver={event => { event.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={handleDrop}><div className="upload-icon"><UploadIcon /></div><h2>Drop your video here</h2><p>or click to browse from your device</p><span className="format-pill">MP4, MOV up to 100MB</span></div>}
         {file && <div className="preview-wrap"><video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} /><button className="play-button" aria-label={playing ? 'Pause video' : 'Play video'} onClick={togglePlay}>{playing ? 'Ⅱ' : '▶'}</button><div className="file-meta"><span>{file.name}</span><span>{(file.size / (1024 * 1024)).toFixed(1)} MB</span></div></div>}
+        {file && videoDuration > 0 && <div className="timeline-wrap" aria-label="Video timeline"><div className="timeline-head"><span>Timeline</span><span className="current">{formatTime(timelineTime)}</span></div><div className="timeline"><div className="timeline-fill" style={{ width: `${Math.min(100, (timelineTime / videoDuration) * 100)}%` }} /><div className="timeline-markers">{markerPoints.map(point => point <= videoDuration && <span key={point} className={`marker ${timelineTime > point + .5 ? 'passed' : Math.abs(timelineTime - point) < .5 ? 'current' : ''}`} style={{ left: `${(point / videoDuration) * 100}%` }} />)}</div></div><div className="timeline-labels"><span>0:00</span><span>{formatTime(videoDuration)}</span></div></div>}
         {file && <div className="progress-area"><div className="progress-heading"><span>{processing ? 'Uploading video' : status || 'Ready to submit'}</span><strong>{progress}%</strong></div><div className="progress-track"><div className="progress-fill" style={{ width: `${progress}%` }} /></div><p>{processing ? 'Please keep this screen open while your video uploads.' : frames.length ? 'Your video is ready.' : status}</p></div>}
         {status && !processing && !frames.length && file && <p className="error-text" role="alert">{status}</p>}
         {file && <button className="primary-button submit-button" disabled={sending} onClick={submit}>{sending ? 'Sending...' : 'Send video'} <span aria-hidden="true">→</span></button>}
