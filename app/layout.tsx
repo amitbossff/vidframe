@@ -4,7 +4,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'UP — Secure Video Upload',
-  description: 'Upload and securely send video frames in a few taps.',
+  description: 'Upload and securely send your video in a few taps.',
   generator: 'v0.app',
 }
 
