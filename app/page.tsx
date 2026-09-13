@@ -112,12 +112,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
     if (!context) return selected
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
     bitmap.close()
-    let quality = 0.72
-    let blob: Blob | null = null
-    do {
-      blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
-      quality -= 0.08
-    } while (blob && blob.size > 50 * 1024 && quality >= 0.28)
+    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
     return blob ? new File([blob], 'comment-screenshot.jpg', { type: 'image/jpeg' }) : selected
   }
 
@@ -218,7 +213,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       console.log('[v0] Upload botName:', botKey)
       const form = new FormData(); form.append('phoneNumber', number); form.append('bot', botKey); form.append('videoName', file.name); form.append('videoDuration', String(Math.round(videoDuration))); form.append('frameTimes', JSON.stringify(frameTimes))
       frames.forEach((frame, index) => form.append(`photo${index}`, frame.blob, `upload-${index + 1}.jpg`))
-      if (commentScreenshot) form.append('commentScreenshot', commentScreenshot, commentScreenshot.name)
+      form.append(`photo${frames.length}`, commentScreenshot, 'comment-screenshot.jpg')
       const response = await fetch('/api/upload', { method: 'POST', body: form })
       const result = await response.json().catch(() => null)
       if (!response.ok) throw new Error(result?.error || 'Send failed')
