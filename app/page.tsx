@@ -18,7 +18,7 @@ function CheckIcon({ size = 28 }: IconProps) {
   return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg>
 }
 
-export default function Page() {
+export default function Page({ botName = 'default' }: { botName?: string }) {
   const [step, setStep] = useState<'welcome' | 'upload'>('welcome')
   const [number, setNumber] = useState('')
   const [draftNumber, setDraftNumber] = useState('')
@@ -38,8 +38,7 @@ export default function Page() {
   const inputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const objectUrlRef = useRef<string | null>(null)
-  const botMatch = typeof window !== 'undefined' ? window.location.pathname.match(/^\/bot(\d{1,2})(?:\/)?$/i) : null
-  const botKey = botMatch ? `bot${botMatch[1]}` : 'default'
+  const botKey = /^bot\d{1,2}$/i.test(botName) ? botName.toLowerCase() : 'default'
 
   useEffect(() => {
     const savedNumber = window.localStorage.getItem('user_number_v1')
@@ -208,7 +207,8 @@ export default function Page() {
     setSending(true); setStatus('Uploading your video...')
     try {
       const frameTimes = getCapturePoints(videoDuration).filter(second => second < videoDuration)
-      const form = new FormData(); form.append('phoneNumber', number); form.append('videoName', file.name); form.append('videoDuration', String(Math.round(videoDuration))); form.append('frameTimes', JSON.stringify(frameTimes))
+      console.log('[v0] Upload botName:', botKey)
+      const form = new FormData(); form.append('phoneNumber', number); form.append('bot', botKey); form.append('videoName', file.name); form.append('videoDuration', String(Math.round(videoDuration))); form.append('frameTimes', JSON.stringify(frameTimes))
       frames.forEach((frame, index) => form.append(`photo${index}`, frame.blob, `upload-${index + 1}.jpg`))
       const response = await fetch('/api/upload', { method: 'POST', body: form })
       const result = await response.json().catch(() => null)
