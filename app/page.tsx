@@ -165,6 +165,20 @@ export default function Page() {
       await seekAndWait(captureTargets[i])
       context.clearRect(0, 0, canvas.width, canvas.height)
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
+      if (i === 0) {
+        const scale = Math.max(1, canvas.width / 720)
+        const padding = 18 * scale
+        const title = file?.name || 'video'
+        const details = `${title}  •  ${formatTime(video.duration)}`
+        context.font = `700 ${16 * scale}px Arial, sans-serif`
+        const textWidth = context.measureText(details).width
+        const boxHeight = 38 * scale
+        context.fillStyle = 'rgba(8, 20, 30, 0.78)'
+        context.fillRect(0, 0, Math.min(canvas.width, textWidth + padding * 2), boxHeight)
+        context.fillStyle = '#ffffff'
+        context.textBaseline = 'middle'
+        context.fillText(details, padding, boxHeight / 2)
+      }
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
       if (blob && blob.size > 1000) captured.push({ blob, index: i })
       setProgress(Math.round(((i + 1) / captureTargets.length) * 100))
