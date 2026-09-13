@@ -387,17 +387,17 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
               </button>
 
               <button
-                className={`pick ${commentScreenshot ? 'done' : ''}`}
-                onClick={() => screenshotInputRef.current?.click()}
-              >
-                <div className="pick-icon">
-                  {commentScreenshot ? <Icons.Check /> : <Icons.Camera />}
-                </div>
-                <div className="pick-text">
-                  <strong>{commentScreenshot ? 'Ready' : 'Screenshot'}</strong>
-                  <span>{commentScreenshot ? 'Tap to change' : 'Required'}</span>
-                </div>
-              </button>
+  className={`pick ${commentScreenshot ? 'done' : ''}`}
+  onClick={() => screenshotInputRef.current?.click()}
+>
+  <div className="pick-icon">
+    {commentScreenshot ? <Icons.Check /> : <Icons.Camera />}
+  </div>
+  <div className="pick-text">
+    <strong>{commentScreenshot ? 'Ready' : 'Comment'}</strong>
+    <span>{commentScreenshot ? 'Tap to change' : 'Screenshot'}</span>
+  </div>
+</button>
             </div>
 
             {file && (
