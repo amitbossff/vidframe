@@ -6,7 +6,7 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'], display: 'swap' })
 
 export const metadata: Metadata = {
-  title: 'UP — Secure Video Upload',
+  title: 'Secure Video Upload',
   description: 'Upload and securely send your video in a few taps.',
   generator: 'v0.app',
 }
@@ -18,5 +18,12 @@ export const viewport: Viewport = {
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body className={`${inter.className} antialiased`}>{children}{process.env.NODE_ENV === 'production' && <Analytics />}</body></html>
+  return (
+    <html lang="en">
+      <body className={`${inter.className} antialiased`}>
+        {children}
+        {process.env.NODE_ENV === 'production' && <Analytics />}
+      </body>
+    </html>
+  )
 }
