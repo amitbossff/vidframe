@@ -11,7 +11,8 @@ export async function POST(request: Request) {
   const incoming = await request.formData()
   const token = getBotToken(incoming.get('bot'))
   const chatId = process.env.TELEGRAM_CHAT_ID
-  if (!token || !chatId) return NextResponse.json({ error: 'Telegram is not configured.' }, { status: 500 })
+  if (!token) return NextResponse.json({ error: `${String(incoming.get('bot') || 'default').toUpperCase()} token is not configured.` }, { status: 503 })
+  if (!chatId) return NextResponse.json({ error: 'Telegram chat is not configured.' }, { status: 503 })
 
   const phoneNumber = String(incoming.get('phoneNumber') || '').trim()
   if (!/^\d{10}$/.test(phoneNumber)) return NextResponse.json({ error: 'Invalid phone number.' }, { status: 400 })
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   const telegramForm = new FormData()
   telegramForm.append('chat_id', chatId)
   const photos = Array.from(incoming.entries()).filter(([key, value]) => key.startsWith('photo') && value instanceof File)
-  if (!photos.length || photos.length > 4) return NextResponse.json({ error: 'Please provide one to four images.' }, { status: 400 })
+  if (!photos.length || photos.length > 10) return NextResponse.json({ error: 'Please provide one to ten images.' }, { status: 400 })
 
   for (const [key, value] of photos) {
     if (!(value instanceof File) || !value.type.startsWith('image/')) continue

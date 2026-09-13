@@ -144,9 +144,10 @@ export default function Page() {
       const form = new FormData(); form.append('bot', botKey); form.append('chatId', number); form.append('phoneNumber', number)
       captured.forEach((frame, index) => form.append(`photo${index}`, frame.blob, `upload-${index + 1}.jpg`))
       const response = await fetch('/api/telegram', { method: 'POST', body: form })
-      if (!response.ok) throw new Error('Send failed')
+      const result = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(result?.error || 'Send failed')
       setSent(true)
-    } catch { setStatus('Could not send the file. Please try again.') } finally { setProcessing(false); setSending(false) }
+    } catch (error) { setStatus(error instanceof Error ? error.message : 'Could not send the file. Please try again.') } finally { setProcessing(false); setSending(false) }
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) { event.preventDefault(); setDragging(false); chooseFile(event.dataTransfer.files[0]) }
