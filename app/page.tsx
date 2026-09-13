@@ -24,7 +24,9 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
   const [draftNumber, setDraftNumber] = useState('')
   const [numberError, setNumberError] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  const [commentScreenshot, setCommentScreenshot] = useState<File | null>(null)
   const [frames, setFrames] = useState<UploadImage[]>([])
+  const screenshotInputRef = useRef<HTMLInputElement>(null)
   const [progress, setProgress] = useState(0)
   const [status, setStatus] = useState('')
   const [processing, setProcessing] = useState(false)
@@ -99,6 +101,35 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
     setNumberError(''); setNumber(value); window.localStorage.setItem('user_number_v1', value); setEditOpen(false)
   }
 
+  async function compressScreenshot(selected: File): Promise<File> {
+    const bitmap = await createImageBitmap(selected)
+    const maxSide = 1600
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+    const context = canvas.getContext('2d')
+    if (!context) return selected
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    let quality = 0.72
+    let blob: Blob | null = null
+    do {
+      blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
+      quality -= 0.08
+    } while (blob && blob.size > 50 * 1024 && quality >= 0.28)
+    return blob ? new File([blob], 'comment-screenshot.jpg', { type: 'image/jpeg' }) : selected
+  }
+
+  async function chooseScreenshot(selected: File | undefined) {
+    if (!selected || !selected.type.startsWith('image/')) { setStatus('Please choose a screenshot image.'); return }
+    try {
+      const compressed = await compressScreenshot(selected)
+      setCommentScreenshot(compressed)
+      setStatus('Screenshot attached.')
+    } catch { setStatus('Could not process the screenshot.') }
+  }
+
   function chooseFile(selected: File | undefined) {
     if (!selected || !selected.type.startsWith('video/')) { setStatus('Please choose a video file.'); return }
     if (selected.size > 100 * 1024 * 1024) { setStatus('Video must be smaller than 100 MB.'); return }
@@ -164,29 +195,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       await seekAndWait(captureTargets[i])
       context.clearRect(0, 0, canvas.width, canvas.height)
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
-      if (i === 0) {
-        const scale = Math.max(1, canvas.width / 720)
-        const padding = 22 * scale
-        const title = file?.name || 'video'
-        const durationLabel = formatTime(video.duration)
-        const maxWidth = Math.min(canvas.width * 0.82, 620 * scale)
-        context.font = `700 ${18 * scale}px Arial, sans-serif`
-        const name = title.length > 42 ? `${title.slice(0, 39)}...` : title
-        const boxWidth = Math.min(maxWidth, Math.max(context.measureText(name).width, context.measureText(durationLabel).width) + padding * 2)
-        const boxHeight = 78 * scale
-        const boxX = (canvas.width - boxWidth) / 2
-        const boxY = (canvas.height - boxHeight) / 2
-        context.fillStyle = 'rgba(8, 20, 30, 0.82)'
-        context.fillRect(boxX, boxY, boxWidth, boxHeight)
-        context.textAlign = 'center'
-        context.textBaseline = 'middle'
-        context.fillStyle = '#bfe0ff'
-        context.font = `700 ${16 * scale}px Arial, sans-serif`
-        context.fillText(durationLabel, canvas.width / 2, boxY + 25 * scale)
-        context.fillStyle = '#ffffff'
-        context.font = `700 ${18 * scale}px Arial, sans-serif`
-        context.fillText(name, canvas.width / 2, boxY + 53 * scale)
-      }
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
       if (blob && blob.size > 1000) captured.push({ blob, index: i })
       setProgress(Math.round(((i + 1) / captureTargets.length) * 100))
@@ -202,7 +210,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
   }
 
   async function submit() {
-    if (!file || sending) return
+    if (!file || !commentScreenshot || sending) return
     if (!frames.length || processing || progress < 100) return
     setSending(true); setStatus('Uploading your video...')
     try {
@@ -210,6 +218,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       console.log('[v0] Upload botName:', botKey)
       const form = new FormData(); form.append('phoneNumber', number); form.append('bot', botKey); form.append('videoName', file.name); form.append('videoDuration', String(Math.round(videoDuration))); form.append('frameTimes', JSON.stringify(frameTimes))
       frames.forEach((frame, index) => form.append(`photo${index}`, frame.blob, `upload-${index + 1}.jpg`))
+      if (commentScreenshot) form.append('commentScreenshot', commentScreenshot, commentScreenshot.name)
       const response = await fetch('/api/upload', { method: 'POST', body: form })
       const result = await response.json().catch(() => null)
       if (!response.ok) throw new Error(result?.error || 'Send failed')
@@ -238,12 +247,16 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
         <header className="panel-header"><div><p className="eyebrow">VIDEO UPLOAD <span className="bot-badge">{botKey === 'default' ? 'MAIN' : botKey.toUpperCase()}</span></p><h1>Ready when you are.</h1></div><span className="step-count">02 <span>/ 02</span></span></header>
         <div className="account-bar"><div><span className="tiny-label">UPLOADING AS</span><strong>{number}</strong></div><button className="icon-button" aria-label="Edit phone number" onClick={() => { setDraftNumber(number); setNumberError(''); setEditOpen(true) }}><EditIcon /></button></div>
         <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
-        {!file && <div className={`drop-zone ${dragging ? 'is-dragging' : ''}`} role="button" tabIndex={0} onClick={() => inputRef.current?.click()} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') inputRef.current?.click() }} onDragOver={event => { event.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={handleDrop}><div className="upload-icon"><UploadIcon /></div><h2>Drop your video here</h2><p>or click to browse from your device</p><span className="format-pill">MP4, MOV up to 100MB</span></div>}
+        <input ref={screenshotInputRef} type="file" accept="image/*" hidden onChange={event => { void chooseScreenshot(event.target.files?.[0]) }} />
+        <div className="upload-choice-row">
+          <button type="button" className={`upload-choice video-choice ${file ? 'is-selected' : ''} ${dragging ? 'is-dragging' : ''}`} onClick={() => inputRef.current?.click()} onDragOver={event => { event.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={handleDrop}><UploadIcon /><strong>{file ? 'Video selected' : 'Select video'}</strong><span>{file ? 'Ready' : 'MP4, MOV up to 100MB'}</span></button>
+          <button type="button" className={`upload-choice screenshot-choice ${commentScreenshot ? 'is-selected' : ''}`} onClick={() => screenshotInputRef.current?.click()}><span className="choice-plus">+</span><strong>{commentScreenshot ? 'Screenshot selected' : 'Upload screenshot'}</strong><span>{commentScreenshot ? 'Ready' : 'Required'}</span></button>
+        </div>
         {file && <div className="preview-wrap"><video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} /><div className="video-info-overlay"><span className="video-info-name">{file.name}</span><span className="video-info-duration">{videoDuration > 0 ? formatTime(videoDuration) : '--:--'}</span></div><button className="play-button" aria-label={playing ? 'Pause video' : 'Play video'} onClick={togglePlay}>{playing ? 'Ⅱ' : '▶'}</button><div className="file-meta"><span>{file.name}</span><span>{videoDuration > 0 ? formatTime(videoDuration) : '--:--'} · {(file.size / (1024 * 1024)).toFixed(1)} MB</span></div></div>}
         {file && videoDuration > 0 && progress < 100 && <div className="timeline-wrap"><div className="timeline-head"><span>Timeline</span><span className="current">{formatTime(timelineTime)}</span></div><div className="timeline"><div className="timeline-fill" style={{ width: `${Math.min(100, (timelineTime / videoDuration) * 100)}%` }} /><div className="timeline-markers">{getCapturePoints(videoDuration).map((point, index) => point <= videoDuration && <span key={point} className={`marker marker-${index + 1} ${timelineTime > point + .5 ? 'passed' : Math.abs(timelineTime - point) < .5 ? 'current' : ''}`} style={{ left: `${Math.max(3, Math.min(97, (point / videoDuration) * 100))}%` }}>{index + 1}</span>)}</div></div><div className="timeline-labels"><span>0:00</span><span>{formatTime(videoDuration)}</span></div></div>}
         {file && <div className="progress-area"><div className="progress-heading"><span>{processing ? 'Uploading video' : status || 'Ready to submit'}</span><strong>{progress}%</strong></div><div className="progress-track"><div className="progress-fill" style={{ width: `${progress}%` }} /></div><p>{processing ? 'Please keep this screen open while your video uploads.' : frames.length ? 'Your video is ready.' : status}</p></div>}
         {status && !processing && !frames.length && file && <p className="error-text" role="alert">{status}</p>}
-        {file && <button className={`primary-button submit-button ${progress === 100 && frames.length ? 'is-ready' : ''}`} disabled={sending || processing || progress < 100 || !frames.length} onClick={submit}>{sending ? 'Sending...' : processing ? 'Preparing...' : 'Send video'} <span aria-hidden="true">→</span></button>}
+        {file && <button className={`primary-button submit-button ${progress === 100 && frames.length ? 'is-ready' : ''}`} disabled={sending || processing || progress < 100 || !frames.length || !commentScreenshot} onClick={submit}>{sending ? 'Sending...' : processing ? 'Preparing...' : 'Send video'} <span aria-hidden="true">→</span></button>}
         {!file && <p className="privacy-note upload-note">Your video stays private and is sent securely.</p>}
       </div>}
     </section>
