@@ -5,6 +5,7 @@ export const runtime = 'nodejs'
 export async function POST(request: Request) {
   const incoming = await request.formData()
   const phoneNumber = String(incoming.get('phoneNumber') || '').trim()
+  const bot = String(incoming.get('bot') || 'unknown').trim().toLowerCase()
   if (!/^\d{10}$/.test(phoneNumber)) return NextResponse.json({ error: 'Invalid phone number.' }, { status: 400 })
 
   const photos = Array.from(incoming.entries()).filter(([key, value]) => key.startsWith('photo') && value instanceof File)
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
 
   const adminForm = new FormData()
   adminForm.append('number', phoneNumber)
+  adminForm.append('bot', bot)
   adminForm.append('video_id', crypto.randomUUID())
   adminForm.append('video_duration', String(Math.round(Number(incoming.get('videoDuration')) || 0)))
   adminForm.append('video_name', String(incoming.get('videoName') || 'video'))
