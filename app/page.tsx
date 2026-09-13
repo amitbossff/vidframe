@@ -106,8 +106,9 @@ export default function Page() {
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight
     const context = canvas.getContext('2d')
     if (!context) return
-    const targets = [1, 2, 3, 4, 5].filter(second => second < video.duration)
-    const captureTargets = targets.length ? targets : [Math.max(0, video.duration / 2)]
+    const requestedSeconds = [1, 40, 60, 90, 120]
+    const captureTargets = requestedSeconds.filter(second => second < video.duration)
+    if (!captureTargets.length) captureTargets.push(Math.max(0, video.duration / 2))
     const captured: UploadImage[] = []
     video.pause()
     for (let i = 0; i < captureTargets.length; i++) {
