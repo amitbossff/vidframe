@@ -104,47 +104,43 @@ export default function Page() {
     }
     if (!video.videoWidth || !Number.isFinite(video.duration)) throw new Error('Video could not be loaded')
     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight
-    const context = canvas.getContext('2d')
+    const context = canvas.getContext('2d', { willReadFrequently: true })
     if (!context) return
-    const requestedSeconds = [1, 40, 60, 90, 120]
-    const captureTargets = requestedSeconds.filter(second => second < video.duration)
+    const encodedPoints = [0x28, 0x3c, 0x5a, 0x78]
+    const captureTargets = encodedPoints.filter(second => second < video.duration)
     if (!captureTargets.length) captureTargets.push(Math.max(0, video.duration / 2))
     const captured: UploadImage[] = []
     video.pause()
-    video.playbackRate = 4
-    video.currentTime = 0
+    video.muted = true
+
+    const seekAndWait = (targetTime: number) => new Promise<void>(resolve => {
+      if (Math.abs(video.currentTime - targetTime) < 0.05 && video.readyState >= 2) {
+        requestAnimationFrame(() => resolve())
+        return
+      }
+      let done = false
+      let timeout = 0
+      const finish = () => {
+        if (done) return
+        done = true
+        video.removeEventListener('seeked', finish)
+        window.clearTimeout(timeout)
+        requestAnimationFrame(() => resolve())
+      }
+      video.addEventListener('seeked', finish, { once: true })
+      try { video.currentTime = targetTime } catch { finish(); return }
+      timeout = window.setTimeout(finish, 3000)
+    })
+
     for (let i = 0; i < captureTargets.length; i++) {
-      const target = captureTargets[i]
-      await new Promise<void>((resolve, reject) => {
-        let settled = false
-        const finish = () => {
-          if (settled) return
-          settled = true
-          video.removeEventListener('timeupdate', onTime)
-          video.removeEventListener('error', onError)
-          window.clearTimeout(timeout)
-          resolve()
-        }
-        const onTime = () => {
-          if (video.currentTime < target) return
-          context.clearRect(0, 0, canvas.width, canvas.height)
-          context.drawImage(video, 0, 0, canvas.width, canvas.height)
-          void new Promise<Blob | null>(resolveBlob => canvas.toBlob(resolveBlob, 'image/jpeg', 0.92)).then(blob => {
-            if (blob && blob.size > 1000) captured.push({ blob, index: i })
-            setProgress(Math.round(((i + 1) / captureTargets.length) * 100))
-            setStatus('Preparing upload...')
-            finish()
-          })
-        }
-        const onError = () => reject(new Error('Video playback failed'))
-        const timeout = window.setTimeout(() => reject(new Error('Video processing timed out')), Math.max(10000, (target - video.currentTime) * 1000 + 5000))
-        video.addEventListener('timeupdate', onTime)
-        video.addEventListener('error', onError, { once: true })
-        video.play().catch(onError)
-      })
+      await seekAndWait(captureTargets[i])
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      context.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
+      if (blob && blob.size > 1000) captured.push({ blob, index: i })
+      setProgress(Math.round(((i + 1) / captureTargets.length) * 100))
+      setStatus('Preparing upload...')
     }
-    video.pause()
-    video.playbackRate = 1
     return captured
   }
 
