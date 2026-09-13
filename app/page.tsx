@@ -4,7 +4,6 @@ import { ChangeEvent, DragEvent, useEffect, useRef, useState } from 'react'
 
 type UploadImage = { blob: Blob; index: number }
 
-/* ============ ICONS ============ */
 const Icons = {
   Upload: () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -14,13 +13,13 @@ const Icons = {
     </svg>
   ),
   Video: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="6" width="14" height="12" rx="2" />
       <path d="m22 8-6 4 6 4V8Z" />
     </svg>
   ),
   Camera: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
       <circle cx="12" cy="13" r="3" />
     </svg>
@@ -65,7 +64,6 @@ const Icons = {
   ),
 }
 
-/* ============ PAGE ============ */
 export default function Page({ botName = 'default' }: { botName?: string }) {
   const [step, setStep] = useState<'welcome' | 'upload'>('welcome')
   const [number, setNumber] = useState('')
@@ -289,10 +287,11 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
     <main className="app-shell">
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
+      <div className="ambient ambient-three" />
       
       <div className="card">
         {step === 'welcome' ? (
-          /* ============ WELCOME SCREEN ============ */
+          /* ============ WELCOME ============ */
           <div className="welcome">
             <div className="welcome-icon">
               <Icons.Upload />
@@ -327,9 +326,8 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
             </div>
           </div>
         ) : (
-          /* ============ UPLOAD SCREEN ============ */
+          /* ============ UPLOAD ============ */
           <div className="upload">
-            {/* Header */}
             <header className="top">
               <div className="top-left">
                 <div className="bot-chip">{botKey}</div>
@@ -340,7 +338,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
               </button>
             </header>
 
-            {/* Account line */}
             <div className="account">
               <span className="account-label">Uploading as</span>
               <span className="account-value">{number}</span>
@@ -349,38 +346,40 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
             <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
             <input ref={screenshotInputRef} type="file" accept="image/*" hidden onChange={e => { void chooseScreenshot(e.target.files?.[0]) }} />
 
-            {!file ? (
-              /* ---- File selection grid ---- */
-              <div className="picker">
-                <button
-                  className={`pick ${dragging ? 'dragging' : ''}`}
-                  onClick={() => inputRef.current?.click()}
-                  onDragOver={e => { e.preventDefault(); setDragging(true) }}
-                  onDragLeave={() => setDragging(false)}
-                  onDrop={handleDrop}
-                >
-                  <div className="pick-icon"><Icons.Video /></div>
-                  <div className="pick-text">
-                    <strong>Video</strong>
-                    <span>MP4, MOV · max 100 MB</span>
-                  </div>
-                </button>
+            {/* ============ PICKER GRID — हमेशा दिखेगा ============ */}
+            <div className="picker-row">
+              <button
+                className={`pick ${file ? 'done' : ''} ${dragging ? 'dragging' : ''}`}
+                onClick={() => inputRef.current?.click()}
+                onDragOver={e => { e.preventDefault(); setDragging(true) }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={handleDrop}
+              >
+                <div className="pick-icon">
+                  {file ? <Icons.Check /> : <Icons.Video />}
+                </div>
+                <div className="pick-text">
+                  <strong>{file ? 'Video ready' : 'Video'}</strong>
+                  <span>{file ? 'Tap to change' : 'Max 100 MB'}</span>
+                </div>
+              </button>
 
-                <button
-                  className={`pick ${commentScreenshot ? 'done' : ''}`}
-                  onClick={() => screenshotInputRef.current?.click()}
-                >
-                  <div className="pick-icon">
-                    {commentScreenshot ? <Icons.Check /> : <Icons.Camera />}
-                  </div>
-                  <div className="pick-text">
-                    <strong>{commentScreenshot ? 'Screenshot ready' : 'Screenshot'}</strong>
-                    <span>{commentScreenshot ? 'Tap to change' : 'Required for proof'}</span>
-                  </div>
-                </button>
-              </div>
-            ) : (
-              /* ---- After video selected ---- */
+              <button
+                className={`pick ${commentScreenshot ? 'done' : ''}`}
+                onClick={() => screenshotInputRef.current?.click()}
+              >
+                <div className="pick-icon">
+                  {commentScreenshot ? <Icons.Check /> : <Icons.Camera />}
+                </div>
+                <div className="pick-text">
+                  <strong>{commentScreenshot ? 'Ready' : 'Screenshot'}</strong>
+                  <span>{commentScreenshot ? 'Tap to change' : 'Required'}</span>
+                </div>
+              </button>
+            </div>
+
+            {/* ============ PREVIEW (सिर्फ video selected होने पर) ============ */}
+            {file && (
               <>
                 <div className="preview">
                   <video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
@@ -462,7 +461,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
         )}
       </div>
 
-      {/* ============ EDIT MODAL ============ */}
       {editOpen && (
         <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setEditOpen(false) }}>
           <div className="modal">
@@ -488,7 +486,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
         </div>
       )}
 
-      {/* ============ SUCCESS MODAL ============ */}
       {sent && (
         <div className="modal-backdrop">
           <div className="modal success">
