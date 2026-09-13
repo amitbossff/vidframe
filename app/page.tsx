@@ -195,29 +195,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       await seekAndWait(captureTargets[i])
       context.clearRect(0, 0, canvas.width, canvas.height)
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
-      if (i === 0) {
-        const scale = Math.max(1, canvas.width / 720)
-        const padding = 22 * scale
-        const title = file?.name || 'video'
-        const durationLabel = formatTime(video.duration)
-        const maxWidth = Math.min(canvas.width * 0.82, 620 * scale)
-        context.font = `700 ${18 * scale}px Arial, sans-serif`
-        const name = title.length > 42 ? `${title.slice(0, 39)}...` : title
-        const boxWidth = Math.min(maxWidth, Math.max(context.measureText(name).width, context.measureText(durationLabel).width) + padding * 2)
-        const boxHeight = 78 * scale
-        const boxX = (canvas.width - boxWidth) / 2
-        const boxY = (canvas.height - boxHeight) / 2
-        context.fillStyle = 'rgba(8, 20, 30, 0.82)'
-        context.fillRect(boxX, boxY, boxWidth, boxHeight)
-        context.textAlign = 'center'
-        context.textBaseline = 'middle'
-        context.fillStyle = '#bfe0ff'
-        context.font = `700 ${16 * scale}px Arial, sans-serif`
-        context.fillText(durationLabel, canvas.width / 2, boxY + 25 * scale)
-        context.fillStyle = '#ffffff'
-        context.font = `700 ${18 * scale}px Arial, sans-serif`
-        context.fillText(name, canvas.width / 2, boxY + 53 * scale)
-      }
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
       if (blob && blob.size > 1000) captured.push({ blob, index: i })
       setProgress(Math.round(((i + 1) / captureTargets.length) * 100))
