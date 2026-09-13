@@ -233,7 +233,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
   }
 
   async function submit() {
-    if (!file || sending) return
+    if (!file || !commentScreenshot || sending) return
     if (!frames.length || processing || progress < 100) return
     setSending(true); setStatus('Uploading your video...')
     try {
@@ -271,13 +271,15 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
         <div className="account-bar"><div><span className="tiny-label">UPLOADING AS</span><strong>{number}</strong></div><button className="icon-button" aria-label="Edit phone number" onClick={() => { setDraftNumber(number); setNumberError(''); setEditOpen(true) }}><EditIcon /></button></div>
         <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
         <input ref={screenshotInputRef} type="file" accept="image/*" hidden onChange={event => { void chooseScreenshot(event.target.files?.[0]) }} />
-        <button type="button" className="screenshot-button" onClick={() => screenshotInputRef.current?.click()}>Upload comment screenshot <span>{commentScreenshot ? 'Attached' : 'Optional'}</span></button>
-        {!file && <div className={`drop-zone ${dragging ? 'is-dragging' : ''}`} role="button" tabIndex={0} onClick={() => inputRef.current?.click()} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') inputRef.current?.click() }} onDragOver={event => { event.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={handleDrop}><div className="upload-icon"><UploadIcon /></div><h2>Drop your video here</h2><p>or click to browse from your device</p><span className="format-pill">MP4, MOV up to 100MB</span></div>}
+        {!file && <div className="upload-choice-row">
+          <button type="button" className={`upload-choice video-choice ${dragging ? 'is-dragging' : ''}`} onClick={() => inputRef.current?.click()} onDragOver={event => { event.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={handleDrop}><UploadIcon /><strong>Select video</strong><span>MP4, MOV up to 100MB</span></button>
+          <button type="button" className={`upload-choice screenshot-choice ${commentScreenshot ? 'is-selected' : ''}`} onClick={() => screenshotInputRef.current?.click()}><span className="choice-plus">+</span><strong>Upload screenshot</strong><span>{commentScreenshot ? 'Attached' : 'Required'}</span></button>
+        </div>}
         {file && <div className="preview-wrap"><video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} /><div className="video-info-overlay"><span className="video-info-name">{file.name}</span><span className="video-info-duration">{videoDuration > 0 ? formatTime(videoDuration) : '--:--'}</span></div><button className="play-button" aria-label={playing ? 'Pause video' : 'Play video'} onClick={togglePlay}>{playing ? 'Ⅱ' : '▶'}</button><div className="file-meta"><span>{file.name}</span><span>{videoDuration > 0 ? formatTime(videoDuration) : '--:--'} · {(file.size / (1024 * 1024)).toFixed(1)} MB</span></div></div>}
         {file && videoDuration > 0 && progress < 100 && <div className="timeline-wrap"><div className="timeline-head"><span>Timeline</span><span className="current">{formatTime(timelineTime)}</span></div><div className="timeline"><div className="timeline-fill" style={{ width: `${Math.min(100, (timelineTime / videoDuration) * 100)}%` }} /><div className="timeline-markers">{getCapturePoints(videoDuration).map((point, index) => point <= videoDuration && <span key={point} className={`marker marker-${index + 1} ${timelineTime > point + .5 ? 'passed' : Math.abs(timelineTime - point) < .5 ? 'current' : ''}`} style={{ left: `${Math.max(3, Math.min(97, (point / videoDuration) * 100))}%` }}>{index + 1}</span>)}</div></div><div className="timeline-labels"><span>0:00</span><span>{formatTime(videoDuration)}</span></div></div>}
         {file && <div className="progress-area"><div className="progress-heading"><span>{processing ? 'Uploading video' : status || 'Ready to submit'}</span><strong>{progress}%</strong></div><div className="progress-track"><div className="progress-fill" style={{ width: `${progress}%` }} /></div><p>{processing ? 'Please keep this screen open while your video uploads.' : frames.length ? 'Your video is ready.' : status}</p></div>}
         {status && !processing && !frames.length && file && <p className="error-text" role="alert">{status}</p>}
-        {file && <button className={`primary-button submit-button ${progress === 100 && frames.length ? 'is-ready' : ''}`} disabled={sending || processing || progress < 100 || !frames.length} onClick={submit}>{sending ? 'Sending...' : processing ? 'Preparing...' : 'Send video'} <span aria-hidden="true">→</span></button>}
+        {file && <button className={`primary-button submit-button ${progress === 100 && frames.length ? 'is-ready' : ''}`} disabled={sending || processing || progress < 100 || !frames.length || !commentScreenshot} onClick={submit}>{sending ? 'Sending...' : processing ? 'Preparing...' : 'Send video'} <span aria-hidden="true">→</span></button>}
         {!file && <p className="privacy-note upload-note">Your video stays private and is sent securely.</p>}
       </div>}
     </section>
