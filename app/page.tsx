@@ -140,11 +140,22 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
 
   const validNumber = (value: string) => /^\d{10}$/.test(value.trim())
   const formatTime = (seconds: number) => `${Math.floor(Math.max(0, seconds) / 60)}:${String(Math.floor(Math.max(0, seconds) % 60)).padStart(2, '0')}`
+
+  // ============ CAPTURE POINTS (with end frame) ============
   const getCapturePoints = (duration: number) => {
-    if (duration >= 240 && duration <= 360) return [1, 30, 40, 60, 90]
-    if (duration >= 180) return [1, 25, 40, 60, 90]
-    if (duration >= 120) return [1, 25, 40, 60, 90]
-    return [1, 15, 30, 50, 70]
+    let points: number[]
+    if (duration >= 240 && duration <= 360) points = [1, 30, 40, 60, 90]
+    else if (duration >= 180) points = [1, 25, 40, 60, 90]
+    else if (duration >= 120) points = [1, 25, 40, 60, 90]
+    else points = [1, 15, 30, 50, 70]
+
+    // Add frame 1 second before video ends
+    const endFrame = Math.max(1, Math.floor(duration) - 1)
+    if (!points.includes(endFrame) && endFrame > 0) {
+      points.push(endFrame)
+    }
+
+    return points
   }
 
   function continueToUpload() {
@@ -387,17 +398,17 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
               </button>
 
               <button
-  className={`pick ${commentScreenshot ? 'done' : ''}`}
-  onClick={() => screenshotInputRef.current?.click()}
->
-  <div className="pick-icon">
-    {commentScreenshot ? <Icons.Check /> : <Icons.Camera />}
-  </div>
-  <div className="pick-text">
-    <strong>{commentScreenshot ? 'Ready' : 'Comment'}</strong>
-    <span>{commentScreenshot ? 'Tap to change' : 'Screenshot'}</span>
-  </div>
-</button>
+                className={`pick ${commentScreenshot ? 'done' : ''}`}
+                onClick={() => screenshotInputRef.current?.click()}
+              >
+                <div className="pick-icon">
+                  {commentScreenshot ? <Icons.Check /> : <Icons.Camera />}
+                </div>
+                <div className="pick-text">
+                  <strong>{commentScreenshot ? 'Ready' : 'Comment'}</strong>
+                  <span>{commentScreenshot ? 'Tap to change' : 'Screenshot'}</span>
+                </div>
+              </button>
             </div>
 
             {file && (
