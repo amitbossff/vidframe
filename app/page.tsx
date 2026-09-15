@@ -47,7 +47,7 @@ const Icons = {
     </svg>
   ),
   Edit: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
     </svg>
@@ -432,9 +432,11 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
                 }}
               />
 
-              {/* Watch highlight badge */}
+              {/* Watch badge — improved text */}
               <div className={`task-hero-badge ${task.watch_type === 'full' ? 'watch-full' : 'watch-minutes'}`}>
-                {task.watch_type === 'full' ? '▶ Full Video' : `⏱ ${task.watch_minutes} min`}
+                {task.watch_type === 'full'
+                  ? '▶ WATCH FULL VIDEO'
+                  : `⏱ WATCH ${task.watch_minutes} MINUTES ONLY`}
               </div>
             </div>
 
@@ -442,15 +444,28 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
             <div className="task-info-block">
               <h2 className="task-hero-title">{task.title}</h2>
 
-              {/* Channel chip */}
-              <div className="task-hero-channel-wrap">
-                <div className="task-hero-channel-icon">
-                  {task.channel.charAt(0).toUpperCase()}
+              {/* Channel + number + edit row */}
+              <div className="channel-row">
+                <div className="task-hero-channel-wrap">
+                  <div className="task-hero-channel-icon">
+                    {task.channel.charAt(0).toUpperCase()}
+                  </div>
+                  <p className="task-hero-channel">{task.channel}</p>
                 </div>
-                <p className="task-hero-channel">{task.channel}</p>
+
+                <div className="channel-right">
+                  <span className="channel-number">{number || '—'}</span>
+                  <button
+                    className="channel-edit-btn"
+                    onClick={() => { setDraftNumber(number); setEditOpen(true) }}
+                    aria-label="Edit number"
+                  >
+                    <Icons.Edit />
+                  </button>
+                </div>
               </div>
 
-              {/* Tags — centered */}
+              {/* Tags */}
               {task.tags && (
                 <div className="tags-wrap">
                   {task.tags
@@ -488,7 +503,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
 
             <div className="divider" />
 
-            {/* ---- Upload Section ---- */}
+            {/* ---- Upload Section (Welcome / Upload) ---- */}
             {step === 'welcome' ? (
               <div className="welcome compact-welcome">
                 <h1>Upload your video</h1>
@@ -527,21 +542,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
               </div>
             ) : (
               <div className="upload compact-upload">
-                <header className="top">
-                  <div className="top-left">
-                    <div className="bot-chip">{botKey}</div>
-                    <h2>Upload Proof</h2>
-                  </div>
-                  <button className="icon-btn" onClick={() => { setDraftNumber(number); setEditOpen(true) }} aria-label="Edit number">
-                    <Icons.Edit />
-                  </button>
-                </header>
-
-                <div className="account">
-                  <span className="account-label">Uploading as</span>
-                  <span className="account-value">{number}</span>
-                </div>
-
                 <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
                 <input ref={screenshotInputRef} type="file" accept="image/*" hidden onChange={e => { void chooseScreenshot(e.target.files?.[0]) }} />
 
@@ -578,7 +578,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
 
                 {file && (
                   <>
-                    {/* Smaller video preview */}
                     <div className="preview preview-small">
                       <video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
                       <button className="play-btn play-btn-small" onClick={togglePlay}>
