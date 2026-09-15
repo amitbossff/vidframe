@@ -2,8 +2,30 @@
 
 import { ChangeEvent, DragEvent, useEffect, useRef, useState } from 'react'
 
+// ============================================================
+// ============ TYPES ========================================
+// ============================================================
 type UploadImage = { blob: Blob; index: number }
 
+type TaskData = {
+  id: string
+  title: string
+  channel: string
+  thumbnail: string
+  duration: number
+  tags: string
+  watch_type: 'full' | 'minutes'
+  watch_minutes: number
+  user_limit: number
+  completed_count: number
+  is_over: boolean
+  final_url: string
+  created_at: string
+}
+
+// ============================================================
+// ============ ICONS ========================================
+// ============================================================
 const Icons = {
   Upload: () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -78,6 +100,8 @@ const Icons = {
   ),
 }
 
+const TASKS_API = 'https://amittg.online/video/tasks/api'
+
 export default function Page({ botName = 'default' }: { botName?: string }) {
   const [step, setStep] = useState<'welcome' | 'upload'>('welcome')
   const [number, setNumber] = useState('')
@@ -102,6 +126,11 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
   const objectUrlRef = useRef<string | null>(null)
   const botKey = /^bot\d{1,2}$/i.test(botName) ? botName.toLowerCase() : 'default'
 
+  // ---- Task state ----
+  const [loadingTask, setLoadingTask] = useState(true)
+  const [task, setTask] = useState<TaskData | null>(null)
+  const [hasTask, setHasTask] = useState(false)
+
   useEffect(() => {
     const savedNumber = window.localStorage.getItem('user_number_v1')
     if (savedNumber && validNumber(savedNumber)) {
@@ -110,6 +139,45 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
     }
     return () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current) }
   }, [])
+
+  // ============ FETCH TASK (with 7s auto-refresh) ============
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchTask() {
+      try {
+        const res = await fetch(`${TASKS_API}/list.php?bot=${botKey}`)
+        const text = await res.text()
+        if (text.trim().startsWith('<')) throw new Error('Invalid response')
+
+        const data = JSON.parse(text)
+        if (cancelled) return
+
+        if (data.has_task && data.tasks?.length > 0) {
+          setTask(data.tasks[0])
+          setHasTask(true)
+        } else {
+          setTask(null)
+          setHasTask(false)
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setTask(null)
+          setHasTask(false)
+        }
+      } finally {
+        if (!cancelled) setLoadingTask(false)
+      }
+    }
+
+    fetchTask()
+    const timer = setInterval(fetchTask, 7000)
+
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [botKey])
 
   useEffect(() => {
     const video = videoRef.current
@@ -141,7 +209,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
   const validNumber = (value: string) => /^\d{10}$/.test(value.trim())
   const formatTime = (seconds: number) => `${Math.floor(Math.max(0, seconds) / 60)}:${String(Math.floor(Math.max(0, seconds) % 60)).padStart(2, '0')}`
 
-  // ============ CAPTURE POINTS (with end frame) ============
   const getCapturePoints = (duration: number) => {
     let points: number[]
     if (duration >= 240 && duration <= 360) points = [1, 30, 40, 60, 90]
@@ -149,12 +216,8 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
     else if (duration >= 120) points = [1, 25, 40, 60, 90]
     else points = [1, 15, 30, 50, 70]
 
-    // Add frame 1 second before video ends
     const endFrame = Math.max(1, Math.floor(duration) - 1)
-    if (!points.includes(endFrame) && endFrame > 0) {
-      points.push(endFrame)
-    }
-
+    if (!points.includes(endFrame) && endFrame > 0) points.push(endFrame)
     return points
   }
 
@@ -276,6 +339,40 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
     if (video.paused) { video.play(); setPlaying(true) } else { video.pause(); setPlaying(false) }
   }
 
+  // ============ INCREMENT TASK COUNT ============
+  async function incrementTaskCount() {
+    if (!task) return
+    try {
+      const res = await fetch(`${TASKS_API}/increment.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_id: task.id, bot: botKey }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setTask(prev => prev ? {
+          ...prev,
+          completed_count: data.completed_count,
+          is_over: data.is_over,
+        } : prev)
+      }
+    } catch (e) {
+      console.warn('Increment failed', e)
+    }
+  }
+
+  // ============ WATCH BUTTON CLICK ============
+  function handleWatchClick() {
+    if (!task) return
+    incrementTaskCount()
+  }
+
+  // ============ TAG CLICK → YOUTUBE SEARCH ============
+  function handleTagClick(tag: string) {
+    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(tag)}&sp=EgIIAQ%253D%253D`
+    window.open(searchUrl, '_blank')
+  }
+
   async function submit() {
     if (!file || !commentScreenshot || sending) return
     if (!frames.length || processing || progress < 100) return
@@ -294,6 +391,8 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       const response = await fetch('/api/upload', { method: 'POST', body: form })
       const result = await response.json().catch(() => null)
       if (!response.ok) throw new Error(result?.error || 'Send failed')
+
+      await incrementTaskCount()
       setSent(true)
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Could not send')
@@ -313,186 +412,149 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
       <div className="ambient ambient-three" />
-      
+
       <div className="card">
-        {step === 'welcome' ? (
-          <div className="welcome">
-            <div className="welcome-icon">
-              <Icons.Upload />
-            </div>
-            
-            <h1>Upload your video</h1>
-            <p className="welcome-sub">Enter your phone number to continue</p>
 
-            <div className="welcome-form">
-              <label htmlFor="number">Phone number</label>
-              <input
-                id="number"
-                className="input"
-                type="tel"
-                inputMode="numeric"
-                placeholder="9876543210"
-                value={number}
-                onChange={e => { setNumber(e.target.value.replace(/\D/g, '').slice(0, 10)); setNumberError('') }}
-                onKeyDown={e => { if (e.key === 'Enter') continueToUpload() }}
-              />
-              {numberError && <div className="error">{numberError}</div>}
-            </div>
-
-            <button className="btn-primary" onClick={continueToUpload}>
-              Continue
-              <Icons.Arrow />
-            </button>
-
-            <div className="secure-note">
-              <Icons.Shield />
-              <span>Your number is used only to identify your upload</span>
-            </div>
-
-            <a 
-              href="https://amittg.online/video/user/" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="submissions-link"
-            >
-              <Icons.Folder />
-              <span>View My Submissions</span>
-              <Icons.External />
-            </a>
+        {/* ============ LOADING ============ */}
+        {loadingTask && (
+          <div className="state-box">
+            <div className="spinner" />
+            <p className="state-text">Loading...</p>
           </div>
-        ) : (
-          <div className="upload">
-            <header className="top">
-              <div className="top-left">
-                <div className="bot-chip">{botKey}</div>
-                <h2>Upload</h2>
+        )}
+
+        {/* ============ NO TASK ============ */}
+        {!loadingTask && !hasTask && (
+          <div className="state-box">
+            <div className="state-icon">📅</div>
+            <h2 className="state-title">No task available today</h2>
+            <p className="state-sub">Please check back later</p>
+          </div>
+        )}
+
+        {/* ============ TASK OVER ============ */}
+        {!loadingTask && hasTask && task?.is_over && (
+          <div className="state-box">
+            <div className="state-icon state-icon-over">⏹</div>
+            <h2 className="state-title">Task Over</h2>
+            <p className="state-sub">All entries received. No more submissions.</p>
+            <div className="state-stats">
+              <strong>{task.completed_count}</strong>
+              <span>/ {task.user_limit} submitted</span>
+            </div>
+          </div>
+        )}
+
+        {/* ============ TASK ACTIVE ============ */}
+        {!loadingTask && hasTask && task && !task.is_over && (
+          <>
+            <div className="task-card-view">
+              <div className="task-thumb-wrap">
+                <img
+                  src={task.thumbnail}
+                  alt=""
+                  className="task-thumb-img"
+                  onError={(e) => {
+                    const img = e.target as HTMLImageElement
+                    img.onerror = null
+                    // Extract video id from thumbnail url
+                    const m = task.thumbnail.match(/\/vi\/([^\/]+)\//)
+                    if (m && m[1]) img.src = `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`
+                  }}
+                />
               </div>
-              <button className="icon-btn" onClick={() => { setDraftNumber(number); setEditOpen(true) }} aria-label="Edit number">
-                <Icons.Edit />
-              </button>
-            </header>
 
-            <div className="account">
-              <span className="account-label">Uploading as</span>
-              <span className="account-value">{number}</span>
+              <div className="task-body">
+                <h2 className="task-title-text">{task.title}</h2>
+                <p className="task-channel-text">{task.channel}</p>
+
+                {task.tags && (
+                  <div className="tags-wrap">
+                    {task.tags
+                      .split(/[\n,]+/)
+                      .map(t => t.trim())
+                      .filter(Boolean)
+                      .map((tag, i) => (
+                        <button key={i} className="tag-chip" onClick={() => handleTagClick(tag)}>
+                          {tag}
+                        </button>
+                      ))}
+                  </div>
+                )}
+
+                <div className="live-counter">
+                  <div className="live-counter-head">
+                    <span className="live-dot-wrap">
+                      <span className="live-dot" />
+                      LIVE
+                    </span>
+                    <span className="live-count">
+                      {task.completed_count} / {task.user_limit}
+                    </span>
+                  </div>
+                  <div className="live-bar">
+                    <div
+                      className="live-fill"
+                      style={{ width: `${Math.min(100, (task.completed_count / task.user_limit) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <a
+                  href={task.final_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="watch-btn"
+                  onClick={handleWatchClick}
+                >
+                  <Icons.Play />
+                  {task.watch_type === 'full' ? 'Watch Full Video' : `Watch ${task.watch_minutes} min`}
+                  <Icons.External />
+                </a>
+              </div>
             </div>
 
-            <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
-            <input ref={screenshotInputRef} type="file" accept="image/*" hidden onChange={e => { void chooseScreenshot(e.target.files?.[0]) }} />
+            <div className="divider" />
+          </>
+        )}
 
-            <div className="picker-row">
-              <button
-                className={`pick ${file ? 'done' : ''} ${dragging ? 'dragging' : ''}`}
-                onClick={() => inputRef.current?.click()}
-                onDragOver={e => { e.preventDefault(); setDragging(true) }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={handleDrop}
-              >
-                <div className="pick-icon">
-                  {file ? <Icons.Check /> : <Icons.Video />}
-                </div>
-                <div className="pick-text">
-                  <strong>{file ? 'Video ready' : 'Video'}</strong>
-                  <span>{file ? 'Tap to change' : 'Max 100 MB'}</span>
-                </div>
-              </button>
+        {/* ============ UPLOAD SECTION (only when task active) ============ */}
+        {!loadingTask && hasTask && task && !task.is_over && (
+          <>
+            {step === 'welcome' ? (
+              <div className="welcome">
+                <div className="welcome-icon"><Icons.Upload /></div>
+                <h1>Upload your video</h1>
+                <p className="welcome-sub">Enter your phone number to continue</p>
 
-              <button
-                className={`pick ${commentScreenshot ? 'done' : ''}`}
-                onClick={() => screenshotInputRef.current?.click()}
-              >
-                <div className="pick-icon">
-                  {commentScreenshot ? <Icons.Check /> : <Icons.Camera />}
-                </div>
-                <div className="pick-text">
-                  <strong>{commentScreenshot ? 'Ready' : 'Comment'}</strong>
-                  <span>{commentScreenshot ? 'Tap to change' : 'Screenshot'}</span>
-                </div>
-              </button>
-            </div>
-
-            {file && (
-              <>
-                <div className="preview">
-                  <video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
-                  <button className="play-btn" onClick={togglePlay}>
-                    {playing ? <Icons.Pause /> : <Icons.Play />}
-                  </button>
-                  <div className="preview-tags">
-                    <span className="tag">{videoDuration > 0 ? formatTime(videoDuration) : '--:--'}</span>
-                    <span className="tag">{(file.size / (1024 * 1024)).toFixed(1)} MB</span>
-                  </div>
+                <div className="welcome-form">
+                  <label htmlFor="number">Phone number</label>
+                  <input
+                    id="number"
+                    className="input"
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="9876543210"
+                    value={number}
+                    onChange={e => { setNumber(e.target.value.replace(/\D/g, '').slice(0, 10)); setNumberError('') }}
+                    onKeyDown={e => { if (e.key === 'Enter') continueToUpload() }}
+                  />
+                  {numberError && <div className="error">{numberError}</div>}
                 </div>
 
-                {!videoReady && videoDuration > 0 && (
-                  <div className="timeline">
-                    <div className="timeline-head">
-                      <span>Processing</span>
-                      <span className="time">{formatTime(timelineTime)} / {formatTime(videoDuration)}</span>
-                    </div>
-                    <div className="timeline-bar">
-                      <div className="timeline-fill" style={{ width: `${(timelineTime / videoDuration) * 100}%` }} />
-                      <div className="timeline-markers">
-                        {getCapturePoints(videoDuration).map((point, i) => point <= videoDuration && (
-                          <span
-                            key={point}
-                            className={`dot ${timelineTime > point + 0.5 ? 'passed' : Math.abs(timelineTime - point) < 0.5 ? 'current' : ''}`}
-                            style={{ left: `${(point / videoDuration) * 100}%` }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <button className="btn-primary" onClick={continueToUpload}>
+                  Continue
+                  <Icons.Arrow />
+                </button>
 
-                {videoReady && (
-                  <div className="ready">
-                    <div className="ready-check"><Icons.Check /></div>
-                    <div>
-                      <strong>Ready to submit</strong>
-                      <span>All set</span>
-                    </div>
-                  </div>
-                )}
-
-                {processing && !videoReady && (
-                  <div className="progress">
-                    <div className="progress-head">
-                      <span>Preparing</span>
-                      <strong>{progress}%</strong>
-                    </div>
-                    <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: `${progress}%` }} />
-                    </div>
-                  </div>
-                )}
-
-                {status && !processing && (
-                  <div className="status-msg">{status}</div>
-                )}
-
-                <div className="actions">
-                  <button className="btn-ghost" onClick={() => { setFile(null); setFrames([]); setProgress(0); setVideoDuration(0); setStatus('') }}>
-                    Change
-                  </button>
-                  <button className={`btn-primary ${canSubmit ? 'ready' : ''}`} disabled={!canSubmit} onClick={submit}>
-                    {sending ? 'Sending...' : 'Submit'}
-                    {!sending && <Icons.Arrow />}
-                  </button>
-                </div>
-              </>
-            )}
-
-            {!file && (
-              <>
                 <div className="secure-note">
                   <Icons.Shield />
-                  <span>Your files are sent securely</span>
+                  <span>Your number is used only to identify your upload</span>
                 </div>
 
-                <a 
-                  href="https://amittg.online/video/user/" 
-                  target="_blank" 
+                <a
+                  href="https://amittg.online/video/user/"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="submissions-link"
                 >
@@ -500,9 +562,152 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
                   <span>View My Submissions</span>
                   <Icons.External />
                 </a>
-              </>
+              </div>
+            ) : (
+              <div className="upload">
+                <header className="top">
+                  <div className="top-left">
+                    <div className="bot-chip">{botKey}</div>
+                    <h2>Upload</h2>
+                  </div>
+                  <button className="icon-btn" onClick={() => { setDraftNumber(number); setEditOpen(true) }} aria-label="Edit number">
+                    <Icons.Edit />
+                  </button>
+                </header>
+
+                <div className="account">
+                  <span className="account-label">Uploading as</span>
+                  <span className="account-value">{number}</span>
+                </div>
+
+                <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
+                <input ref={screenshotInputRef} type="file" accept="image/*" hidden onChange={e => { void chooseScreenshot(e.target.files?.[0]) }} />
+
+                <div className="picker-row">
+                  <button
+                    className={`pick ${file ? 'done' : ''} ${dragging ? 'dragging' : ''}`}
+                    onClick={() => inputRef.current?.click()}
+                    onDragOver={e => { e.preventDefault(); setDragging(true) }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={handleDrop}
+                  >
+                    <div className="pick-icon">
+                      {file ? <Icons.Check /> : <Icons.Video />}
+                    </div>
+                    <div className="pick-text">
+                      <strong>{file ? 'Video ready' : 'Video'}</strong>
+                      <span>{file ? 'Tap to change' : 'Max 100 MB'}</span>
+                    </div>
+                  </button>
+
+                  <button
+                    className={`pick ${commentScreenshot ? 'done' : ''}`}
+                    onClick={() => screenshotInputRef.current?.click()}
+                  >
+                    <div className="pick-icon">
+                      {commentScreenshot ? <Icons.Check /> : <Icons.Camera />}
+                    </div>
+                    <div className="pick-text">
+                      <strong>{commentScreenshot ? 'Ready' : 'Comment'}</strong>
+                      <span>{commentScreenshot ? 'Tap to change' : 'Screenshot'}</span>
+                    </div>
+                  </button>
+                </div>
+
+                {file && (
+                  <>
+                    <div className="preview">
+                      <video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
+                      <button className="play-btn" onClick={togglePlay}>
+                        {playing ? <Icons.Pause /> : <Icons.Play />}
+                      </button>
+                      <div className="preview-tags">
+                        <span className="tag">{videoDuration > 0 ? formatTime(videoDuration) : '--:--'}</span>
+                        <span className="tag">{(file.size / (1024 * 1024)).toFixed(1)} MB</span>
+                      </div>
+                    </div>
+
+                    {!videoReady && videoDuration > 0 && (
+                      <div className="timeline">
+                        <div className="timeline-head">
+                          <span>Processing</span>
+                          <span className="time">{formatTime(timelineTime)} / {formatTime(videoDuration)}</span>
+                        </div>
+                        <div className="timeline-bar">
+                          <div className="timeline-fill" style={{ width: `${(timelineTime / videoDuration) * 100}%` }} />
+                          <div className="timeline-markers">
+                            {getCapturePoints(videoDuration).map((point) => point <= videoDuration && (
+                              <span
+                                key={point}
+                                className={`dot ${timelineTime > point + 0.5 ? 'passed' : Math.abs(timelineTime - point) < 0.5 ? 'current' : ''}`}
+                                style={{ left: `${(point / videoDuration) * 100}%` }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {videoReady && (
+                      <div className="ready">
+                        <div className="ready-check"><Icons.Check /></div>
+                        <div>
+                          <strong>Ready to submit</strong>
+                          <span>All set</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {processing && !videoReady && (
+                      <div className="progress">
+                        <div className="progress-head">
+                          <span>Preparing</span>
+                          <strong>{progress}%</strong>
+                        </div>
+                        <div className="progress-bar">
+                          <div className="progress-fill" style={{ width: `${progress}%` }} />
+                        </div>
+                      </div>
+                    )}
+
+                    {status && !processing && (
+                      <div className="status-msg">{status}</div>
+                    )}
+
+                    <div className="actions">
+                      <button className="btn-ghost" onClick={() => { setFile(null); setFrames([]); setProgress(0); setVideoDuration(0); setStatus('') }}>
+                        Change
+                      </button>
+                      <button className={`btn-primary ${canSubmit ? 'ready' : ''}`} disabled={!canSubmit} onClick={submit}>
+                        {sending ? 'Sending...' : 'Submit'}
+                        {!sending && <Icons.Arrow />}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {!file && (
+                  <>
+                    <div className="secure-note">
+                      <Icons.Shield />
+                      <span>Your files are sent securely</span>
+                    </div>
+
+                    <a
+                      href="https://amittg.online/video/user/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="submissions-link"
+                    >
+                      <Icons.Folder />
+                      <span>View My Submissions</span>
+                      <Icons.External />
+                    </a>
+                  </>
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
