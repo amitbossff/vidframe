@@ -99,6 +99,9 @@ html, body {
   overflow: hidden;
 }
 
+/* ============================================================
+/* ============ WELCOME ======================================
+/* ============================================================ */
 .welcome {
   padding: 40px 28px 32px;
   display: flex;
@@ -184,6 +187,9 @@ html, body {
     0 0 20px rgba(99, 102, 241, 0.1);
 }
 
+/* ============================================================
+/* ============ BUTTONS ======================================
+/* ============================================================ */
 .btn-primary {
   display: flex;
   align-items: center;
@@ -302,6 +308,9 @@ html, body {
   font-weight: 500;
 }
 
+/* ============================================================
+/* ============ UPLOAD =======================================
+/* ============================================================ */
 .upload {
   padding: 24px 22px 22px;
   display: flex;
@@ -666,6 +675,9 @@ html, body {
   margin-top: 4px;
 }
 
+/* ============================================================
+/* ============ MODALS =======================================
+/* ============================================================ */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -752,25 +764,9 @@ html, body {
   line-height: 1.5;
 }
 
-@media (max-width: 420px) {
-  .app-shell { padding: 12px; align-items: flex-start; padding-top: 16px; }
-  .card { border-radius: 20px; }
-  .welcome { padding: 32px 22px 26px; }
-  .upload { padding: 20px 18px 18px; }
-  .welcome h1 { font-size: 22px; }
-  .pick { min-height: 118px; padding: 16px 10px; }
-  .pick-icon { width: 40px; height: 40px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-  .ambient { animation: none; }
-}
-
-/* ============ SUBMISSIONS LINK ============ */
+/* ============================================================
+/* ============ SUBMISSIONS LINK =============================
+/* ============================================================ */
 .submissions-link {
   display: flex;
   align-items: center;
@@ -803,7 +799,7 @@ html, body {
 }
 
 /* ============================================================
-/* ============ STATE BOXES (Loading / No Task / Over) =======
+/* ============ STATE BOXES (Loading/No Task/Over) ===========
 /* ============================================================ */
 .state-box {
   padding: 60px 24px;
@@ -877,6 +873,7 @@ html, body {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
+  max-height: 210px;
   background: #000;
   overflow: hidden;
   border-bottom: 1px solid var(--border);
@@ -887,67 +884,128 @@ html, body {
   object-fit: cover;
   display: block;
 }
+
+/* ============ WATCH HIGHLIGHT BADGE ============ */
 .task-hero-badge {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 6px 12px;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(10px);
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
   color: #fff;
   border-radius: 20px;
-  font-size: 11.5px;
-  font-weight: 700;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  letter-spacing: 0.3px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border: none;
+}
+.task-hero-badge.watch-full {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+}
+.task-hero-badge.watch-minutes {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
 }
 
-/* ============ TASK INFO BLOCK ============ */
+/* ============================================================
+/* ============ TASK INFO BLOCK ==============================
+/* ============================================================ */
 .task-info-block {
-  padding: 16px 20px 4px;
+  padding: 14px 18px 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
+
+/* Title with left color bar */
 .task-hero-title {
-  font-size: 15px;
+  position: relative;
+  font-size: 14.5px;
   font-weight: 700;
-  color: var(--text);
-  line-height: 1.35;
+  color: #ffffff;
+  line-height: 1.4;
   margin: 0;
+  padding-left: 12px;
+  letter-spacing: -0.2px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.task-hero-channel {
-  font-size: 12.5px;
-  color: #a5b4fc;
-  font-weight: 600;
-  margin: 0;
+.task-hero-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #6366f1, #8b5cf6, #06b6d4);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.6);
 }
 
-/* ============ TAGS ============ */
+/* Channel — premium chip */
+.task-hero-channel-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(99, 102, 241, 0.15));
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: 20px;
+  align-self: flex-start;
+  max-width: 100%;
+}
+.task-hero-channel-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #06b6d4, #6366f1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+}
+.task-hero-channel {
+  font-size: 11.5px;
+  color: #67e8f9;
+  font-weight: 700;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+/* ============ TAGS (centered) ============ */
 .tags-wrap {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  justify-content: center;
   margin-top: 2px;
 }
 .tag-chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 11px;
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.28);
+  padding: 6px 12px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
   border-radius: 20px;
   color: #c4b5fd;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
   line-height: 1.3;
   max-width: 100%;
   overflow: hidden;
@@ -955,44 +1013,51 @@ html, body {
   white-space: nowrap;
 }
 .tag-chip:hover {
-  background: rgba(99, 102, 241, 0.22);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.25));
   color: #fff;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 .tag-chip:active { transform: translateY(0); }
-.tag-chip svg { flex-shrink: 0; opacity: 0.7; }
+.tag-chip svg {
+  flex-shrink: 0;
+  opacity: 0.65;
+  width: 10px;
+  height: 10px;
+}
 
 /* ============ LIVE COUNTER ============ */
 .live-counter {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
-  padding: 10px 12px;
-  background: rgba(0, 0, 0, 0.2);
+  gap: 5px;
+  margin-top: 2px;
+  padding: 9px 11px;
+  background: rgba(0, 0, 0, 0.22);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 11px;
 }
 .live-counter-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
 .live-dot-wrap {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   color: #10b981;
+  font-size: 10px;
 }
 .live-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #10b981;
-  box-shadow: 0 0 10px #10b981;
+  box-shadow: 0 0 8px #10b981;
   animation: pulse-dot 1.5s ease infinite;
 }
 @keyframes pulse-dot {
@@ -1002,11 +1067,11 @@ html, body {
 .live-count {
   color: #a5b4fc;
   font-variant-numeric: tabular-nums;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 800;
 }
 .live-bar {
-  height: 6px;
+  height: 5px;
   background: rgba(255, 255, 255, 0.06);
   border-radius: 3px;
   overflow: hidden;
@@ -1022,54 +1087,135 @@ html, body {
 /* ============ DIVIDER ============ */
 .divider {
   height: 1px;
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
 }
 
-/* ============ COMPACT WELCOME/UPLOAD ============ */
+/* ============ COMPACT WELCOME / UPLOAD ============ */
 .compact-welcome {
-  padding: 22px 22px 20px;
-  gap: 14px;
+  padding: 20px 20px 18px;
+  gap: 12px;
 }
 .compact-welcome h1 {
-  font-size: 22px;
+  font-size: 20px;
+}
+.compact-welcome .welcome-sub {
+  font-size: 12.5px;
 }
 .compact-upload {
-  padding: 18px 20px 18px;
-  gap: 12px;
+  padding: 16px 18px 16px;
+  gap: 10px;
+}
+.compact-upload .top h2 {
+  font-size: 15px;
+}
+.compact-upload .account {
+  padding: 10px 14px;
+  font-size: 12px;
+}
+.compact-upload .pick {
+  min-height: 80px;
+  padding: 12px 8px;
+  gap: 6px;
+}
+.compact-upload .pick-icon {
+  width: 34px;
+  height: 34px;
+}
+.compact-upload .pick-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.compact-upload .pick-text strong {
+  font-size: 12px;
+}
+.compact-upload .pick-text span {
+  font-size: 10px;
+}
+.compact-upload .timeline {
+  padding: 10px 12px;
+  gap: 6px;
+}
+.compact-upload .timeline-head {
+  font-size: 11px;
+}
+.compact-upload .progress {
+  padding: 10px 12px;
+  gap: 8px;
+}
+.compact-upload .progress-head {
+  font-size: 12px;
+}
+.compact-upload .progress-head strong {
+  font-size: 16px;
+}
+.compact-upload .ready {
+  padding: 10px 12px;
+  gap: 10px;
+}
+.compact-upload .ready strong {
+  font-size: 13px;
+}
+.compact-upload .ready span {
+  font-size: 11px;
+}
+.compact-upload .ready-check {
+  width: 28px;
+  height: 28px;
+}
+.compact-upload .actions {
+  gap: 8px;
+}
+.compact-upload .btn-ghost,
+.compact-upload .btn-primary {
+  height: 44px;
+  font-size: 13.5px;
 }
 
 /* ============ SMALLER VIDEO PREVIEW ============ */
 .preview-small {
   aspect-ratio: 16 / 9;
-  max-height: 180px;
+  max-height: 140px;
 }
 .preview-small video {
-  max-height: 180px;
+  max-height: 140px;
 }
 .play-btn-small {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
 }
 
-/* ============ COMPACT PICKERS ============ */
-.compact-upload .pick {
-  min-height: 96px;
-  padding: 14px 10px;
-  gap: 8px;
-}
-.compact-upload .pick-icon {
-  width: 38px;
-  height: 38px;
-}
-
+/* ============================================================
+/* ============ RESPONSIVE ===================================
+/* ============================================================ */
 @media (max-width: 420px) {
-  .task-hero-title { font-size: 14px; }
-  .task-info-block { padding: 14px 16px 4px; }
-  .compact-welcome { padding: 20px 18px; }
-  .compact-upload { padding: 16px 16px; }
-  .preview-small { max-height: 150px; }
-  .preview-small video { max-height: 150px; }
-  .compact-upload .pick { min-height: 88px; padding: 12px 8px; }
+  .app-shell {
+    padding: 12px;
+    align-items: flex-start;
+    padding-top: 16px;
+  }
+  .card { border-radius: 20px; }
+  .welcome { padding: 32px 22px 26px; }
+  .upload { padding: 20px 18px 18px; }
+  .welcome h1 { font-size: 22px; }
+  .pick { min-height: 118px; padding: 16px 10px; }
+  .pick-icon { width: 40px; height: 40px; }
+  .task-hero { max-height: 180px; }
+  .task-info-block { padding: 12px 14px 10px; gap: 8px; }
+  .task-hero-title { font-size: 13px; }
+  .task-hero-channel { font-size: 10.5px; }
+  .tag-chip { font-size: 10px; padding: 5px 10px; }
+  .compact-welcome { padding: 18px 18px 16px; }
+  .compact-upload { padding: 14px 16px; }
+  .preview-small { max-height: 120px; }
+  .preview-small video { max-height: 120px; }
   .state-box { padding: 50px 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .ambient { animation: none; }
 }
