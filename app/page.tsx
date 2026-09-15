@@ -93,7 +93,7 @@ const Icons = {
     </svg>
   ),
   External: () => (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M7 17L17 7" />
       <path d="M7 7h10v10" />
     </svg>
@@ -431,8 +431,9 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
                   if (m && m[1]) img.src = `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`
                 }}
               />
-              {/* Watch info badge over thumbnail */}
-              <div className="task-hero-badge">
+
+              {/* Watch highlight badge */}
+              <div className={`task-hero-badge ${task.watch_type === 'full' ? 'watch-full' : 'watch-minutes'}`}>
                 {task.watch_type === 'full' ? '▶ Full Video' : `⏱ ${task.watch_minutes} min`}
               </div>
             </div>
@@ -440,9 +441,16 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
             {/* ---- Info below thumbnail ---- */}
             <div className="task-info-block">
               <h2 className="task-hero-title">{task.title}</h2>
-              <p className="task-hero-channel">{task.channel}</p>
 
-              {/* Tags */}
+              {/* Channel chip */}
+              <div className="task-hero-channel-wrap">
+                <div className="task-hero-channel-icon">
+                  {task.channel.charAt(0).toUpperCase()}
+                </div>
+                <p className="task-hero-channel">{task.channel}</p>
+              </div>
+
+              {/* Tags — centered */}
               {task.tags && (
                 <div className="tags-wrap">
                   {task.tags
