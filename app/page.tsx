@@ -54,7 +54,7 @@ const Icons = {
 }
 
 const TASKS_API = 'https://amittg.online/video/tasks/api'
-const USER_PANEL = 'https://amittg.online/video/user/'
+const USER_PANEL = '/my'
 
 export default function HomePage() {
   const [loading, setLoading] = useState(true)
@@ -142,11 +142,9 @@ export default function HomePage() {
         </div>
 
         <a
-          href={USER_PANEL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="view-submitted-btn"
-        >
+  href={USER_PANEL}
+  className="view-submitted-btn"
+>
           <Icons.Folder />
           <span>View My Submitted Tasks</span>
           <Icons.External />
