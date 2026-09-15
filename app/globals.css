@@ -492,18 +492,18 @@ html, body {
 
 .preview-tags {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
+  bottom: 8px;
+  right: 8px;
   display: flex;
-  gap: 6px;
+  gap: 5px;
 }
 .tag {
-  padding: 5px 10px;
+  padding: 4px 8px;
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(10px);
   color: #fff;
-  border-radius: 8px;
-  font-size: 11px;
+  border-radius: 6px;
+  font-size: 10px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.3px;
@@ -921,7 +921,6 @@ html, body {
   gap: 10px;
 }
 
-/* Title with left color bar */
 .task-hero-title {
   position: relative;
   font-size: 14.5px;
@@ -948,7 +947,15 @@ html, body {
   box-shadow: 0 0 10px rgba(139, 92, 246, 0.6);
 }
 
-/* Channel — premium chip */
+/* ============ CHANNEL ROW (Channel + Number + Edit) ======== */
+.channel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .task-hero-channel-wrap {
   display: inline-flex;
   align-items: center;
@@ -957,8 +964,8 @@ html, body {
   background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(99, 102, 241, 0.15));
   border: 1px solid rgba(6, 182, 212, 0.3);
   border-radius: 20px;
-  align-self: flex-start;
   max-width: 100%;
+  min-width: 0;
 }
 .task-hero-channel-icon {
   width: 16px;
@@ -982,6 +989,47 @@ html, body {
   text-overflow: ellipsis;
   white-space: nowrap;
   letter-spacing: 0.2px;
+}
+
+.channel-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+.channel-number {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a5b4fc;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.channel-edit-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.2);
+  border: none;
+  border-radius: 50%;
+  color: #c4b5fd;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.channel-edit-btn:hover {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  transform: scale(1.1);
+}
+.channel-edit-btn:active {
+  transform: scale(0.95);
 }
 
 /* ============ TAGS (centered) ============ */
@@ -1172,17 +1220,34 @@ html, body {
   font-size: 13.5px;
 }
 
-/* ============ SMALLER VIDEO PREVIEW ============ */
+/* ============================================================
+/* ============ SMALLER VIDEO PREVIEW ========================
+/* ============================================================ */
 .preview-small {
   aspect-ratio: 16 / 9;
-  max-height: 140px;
+  max-height: 90px;
+  max-width: 180px;
+  margin: 0 auto;
 }
 .preview-small video {
-  max-height: 140px;
+  max-height: 90px;
 }
 .play-btn-small {
-  width: 40px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
+}
+.play-btn-small svg {
+  width: 12px;
+  height: 12px;
+}
+.preview-small .preview-tags {
+  bottom: 5px;
+  right: 5px;
+  gap: 3px;
+}
+.preview-small .tag {
+  padding: 3px 6px;
+  font-size: 9px;
 }
 
 /* ============================================================
@@ -1204,11 +1269,14 @@ html, body {
   .task-info-block { padding: 12px 14px 10px; gap: 8px; }
   .task-hero-title { font-size: 13px; }
   .task-hero-channel { font-size: 10.5px; }
+  .channel-number { font-size: 10px; }
+  .channel-edit-btn { width: 20px; height: 20px; }
   .tag-chip { font-size: 10px; padding: 5px 10px; }
   .compact-welcome { padding: 18px 18px 16px; }
   .compact-upload { padding: 14px 16px; }
-  .preview-small { max-height: 120px; }
-  .preview-small video { max-height: 120px; }
+  .preview-small { max-height: 80px; max-width: 160px; }
+  .preview-small video { max-height: 80px; }
+  .play-btn-small { width: 28px; height: 28px; }
   .state-box { padding: 50px 20px; }
 }
 
