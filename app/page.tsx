@@ -35,13 +35,13 @@ const Icons = {
     </svg>
   ),
   Video: () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="6" width="14" height="12" rx="2" />
       <path d="m22 8-6 4 6 4V8Z" />
     </svg>
   ),
   Camera: () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
       <circle cx="12" cy="13" r="3" />
     </svg>
@@ -58,12 +58,12 @@ const Icons = {
     </svg>
   ),
   Play: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
       <path d="M8 5v14l11-7z" />
     </svg>
   ),
   Pause: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
       <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
     </svg>
   ),
@@ -79,7 +79,7 @@ const Icons = {
     </svg>
   ),
   X: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
@@ -93,7 +93,7 @@ const Icons = {
     </svg>
   ),
   External: () => (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M7 17L17 7" />
       <path d="M7 7h10v10" />
     </svg>
@@ -339,12 +339,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
     if (video.paused) { video.play(); setPlaying(true) } else { video.pause(); setPlaying(false) }
   }
 
-  // ============ WATCH BUTTON CLICK ============
-  function handleWatchClick() {
-    // Just opens YouTube — count is auto-tracked via uploads folder
-  }
-
-  // ============ TAG CLICK → YOUTUBE SEARCH ============
+  // ============ TAG CLICK → YOUTUBE SEARCH (last hour) ============
   function handleTagClick(tag: string) {
     const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(tag)}&sp=EgIIAQ%253D%253D`
     window.open(searchUrl, '_blank')
@@ -368,9 +363,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       const response = await fetch('/api/upload', { method: 'POST', body: form })
       const result = await response.json().catch(() => null)
       if (!response.ok) throw new Error(result?.error || 'Send failed')
-
       setSent(true)
-      // Counter auto-updates on next 7s refresh
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Could not send')
     } finally {
@@ -422,84 +415,74 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
           </div>
         )}
 
-        {/* ============ TASK ACTIVE ============ */}
+        {/* ============ TASK ACTIVE + UPLOAD ============ */}
         {!loadingTask && hasTask && task && !task.is_over && (
           <>
-            <div className="task-card-view">
-              <div className="task-thumb-wrap">
-                <img
-                  src={task.thumbnail}
-                  alt=""
-                  className="task-thumb-img"
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement
-                    img.onerror = null
-                    const m = task.thumbnail.match(/\/vi\/([^\/]+)\//)
-                    if (m && m[1]) img.src = `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`
-                  }}
-                />
+            {/* ---- Big Thumbnail ---- */}
+            <div className="task-hero">
+              <img
+                src={task.thumbnail}
+                alt=""
+                className="task-hero-img"
+                onError={(e) => {
+                  const img = e.target as HTMLImageElement
+                  img.onerror = null
+                  const m = task.thumbnail.match(/\/vi\/([^\/]+)\//)
+                  if (m && m[1]) img.src = `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`
+                }}
+              />
+              {/* Watch info badge over thumbnail */}
+              <div className="task-hero-badge">
+                {task.watch_type === 'full' ? '▶ Full Video' : `⏱ ${task.watch_minutes} min`}
               </div>
+            </div>
 
-              <div className="task-body">
-                <h2 className="task-title-text">{task.title}</h2>
-                <p className="task-channel-text">{task.channel}</p>
+            {/* ---- Info below thumbnail ---- */}
+            <div className="task-info-block">
+              <h2 className="task-hero-title">{task.title}</h2>
+              <p className="task-hero-channel">{task.channel}</p>
 
-                {task.tags && (
-                  <div className="tags-wrap">
-                    {task.tags
-                      .split(/[\n,]+/)
-                      .map(t => t.trim())
-                      .filter(Boolean)
-                      .map((tag, i) => (
-                        <button key={i} className="tag-chip" onClick={() => handleTagClick(tag)}>
-                          {tag}
-                        </button>
-                      ))}
-                  </div>
-                )}
-
-                <div className="live-counter">
-                  <div className="live-counter-head">
-                    <span className="live-dot-wrap">
-                      <span className="live-dot" />
-                      LIVE
-                    </span>
-                    <span className="live-count">
-                      {task.completed_count} / {task.user_limit}
-                    </span>
-                  </div>
-                  <div className="live-bar">
-                    <div
-                      className="live-fill"
-                      style={{ width: `${Math.min(100, (task.completed_count / task.user_limit) * 100)}%` }}
-                    />
-                  </div>
+              {/* Tags */}
+              {task.tags && (
+                <div className="tags-wrap">
+                  {task.tags
+                    .split(/[\n,]+/)
+                    .map(t => t.trim())
+                    .filter(Boolean)
+                    .map((tag, i) => (
+                      <button key={i} className="tag-chip" onClick={() => handleTagClick(tag)}>
+                        {tag}
+                        <Icons.External />
+                      </button>
+                    ))}
                 </div>
+              )}
 
-                <a
-                  href={task.final_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="watch-btn"
-                  onClick={handleWatchClick}
-                >
-                  <Icons.Play />
-                  {task.watch_type === 'full' ? 'Watch Full Video' : `Watch ${task.watch_minutes} min`}
-                  <Icons.External />
-                </a>
+              {/* LIVE Counter */}
+              <div className="live-counter">
+                <div className="live-counter-head">
+                  <span className="live-dot-wrap">
+                    <span className="live-dot" />
+                    LIVE
+                  </span>
+                  <span className="live-count">
+                    {task.completed_count} / {task.user_limit}
+                  </span>
+                </div>
+                <div className="live-bar">
+                  <div
+                    className="live-fill"
+                    style={{ width: `${Math.min(100, (task.completed_count / task.user_limit) * 100)}%` }}
+                  />
+                </div>
               </div>
             </div>
 
             <div className="divider" />
-          </>
-        )}
 
-        {/* ============ UPLOAD SECTION (only when task active) ============ */}
-        {!loadingTask && hasTask && task && !task.is_over && (
-          <>
+            {/* ---- Upload Section ---- */}
             {step === 'welcome' ? (
-              <div className="welcome">
-                <div className="welcome-icon"><Icons.Upload /></div>
+              <div className="welcome compact-welcome">
                 <h1>Upload your video</h1>
                 <p className="welcome-sub">Enter your phone number to continue</p>
 
@@ -523,11 +506,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
                   <Icons.Arrow />
                 </button>
 
-                <div className="secure-note">
-                  <Icons.Shield />
-                  <span>Your number is used only to identify your upload</span>
-                </div>
-
                 <a
                   href="https://amittg.online/video/user/"
                   target="_blank"
@@ -540,11 +518,11 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
                 </a>
               </div>
             ) : (
-              <div className="upload">
+              <div className="upload compact-upload">
                 <header className="top">
                   <div className="top-left">
                     <div className="bot-chip">{botKey}</div>
-                    <h2>Upload</h2>
+                    <h2>Upload Proof</h2>
                   </div>
                   <button className="icon-btn" onClick={() => { setDraftNumber(number); setEditOpen(true) }} aria-label="Edit number">
                     <Icons.Edit />
@@ -592,9 +570,10 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
 
                 {file && (
                   <>
-                    <div className="preview">
+                    {/* Smaller video preview */}
+                    <div className="preview preview-small">
                       <video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
-                      <button className="play-btn" onClick={togglePlay}>
+                      <button className="play-btn play-btn-small" onClick={togglePlay}>
                         {playing ? <Icons.Pause /> : <Icons.Play />}
                       </button>
                       <div className="preview-tags">
@@ -663,23 +642,16 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
                 )}
 
                 {!file && (
-                  <>
-                    <div className="secure-note">
-                      <Icons.Shield />
-                      <span>Your files are sent securely</span>
-                    </div>
-
-                    <a
-                      href="https://amittg.online/video/user/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="submissions-link"
-                    >
-                      <Icons.Folder />
-                      <span>View My Submissions</span>
-                      <Icons.External />
-                    </a>
-                  </>
+                  <a
+                    href="https://amittg.online/video/user/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="submissions-link"
+                  >
+                    <Icons.Folder />
+                    <span>View My Submissions</span>
+                    <Icons.External />
+                  </a>
                 )}
               </div>
             )}
