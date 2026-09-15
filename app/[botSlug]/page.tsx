@@ -1,672 +1,1583 @@
-'use client'
+@import 'tailwindcss';
 
-import { ChangeEvent, DragEvent, useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
-
-type UploadImage = { blob: Blob; index: number }
-
-type TaskData = {
-  id: string
-  title: string
-  channel: string
-  thumbnail: string
-  duration: number
-  tags: string
-  watch_type: 'full' | 'minutes'
-  watch_minutes: number
-  user_limit: number
-  completed_count: number
-  is_over: boolean
-  final_url: string
-  created_at: string
+:root {
+  --bg-1: #0a1628;
+  --bg-2: #1a1040;
+  --bg-3: #0d1f3d;
+  --surface: rgba(20, 26, 40, 0.75);
+  --surface-2: rgba(30, 38, 55, 0.7);
+  --surface-hover: rgba(40, 50, 70, 0.8);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.15);
+  --text: #ffffff;
+  --text-2: #a5b0c5;
+  --text-3: #6b7789;
+  --accent: #6366f1;
+  --accent-2: #8b5cf6;
+  --accent-3: #06b6d4;
+  --success: #10b981;
+  --success-soft: rgba(16, 185, 129, 0.12);
+  --danger: #ef4444;
 }
 
-const Icons = {
-  Upload: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" y1="3" x2="12" y2="15" />
-    </svg>
-  ),
-  Video: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="6" width="14" height="12" rx="2" />
-      <path d="m22 8-6 4 6 4V8Z" />
-    </svg>
-  ),
-  Camera: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-      <circle cx="12" cy="13" r="3" />
-    </svg>
-  ),
-  Edit: () => (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
-    </svg>
-  ),
-  Check: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  ),
-  Play: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M8 5v14l11-7z" />
-    </svg>
-  ),
-  Pause: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
-    </svg>
-  ),
-  Shield: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    </svg>
-  ),
-  Arrow: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="5" y1="12" x2="19" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
-    </svg>
-  ),
-  X: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  ),
-  External: () => (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M7 17L17 7" />
-      <path d="M7 7h10v10" />
-    </svg>
-  ),
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-1);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-const TASKS_API = 'https://amittg.online/video/tasks/api'
-
-export default function BotPage({ params }: { params: Promise<{ botSlug: string }> }) {
-  return (
-    <BotPageClient params={params} />
-  )
+.app-shell {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.35), transparent 40%),
+    radial-gradient(circle at 85% 20%, rgba(139, 92, 246, 0.28), transparent 40%),
+    radial-gradient(circle at 75% 85%, rgba(6, 182, 212, 0.25), transparent 45%),
+    radial-gradient(circle at 20% 90%, rgba(236, 72, 153, 0.15), transparent 40%),
+    linear-gradient(135deg, #0a1628 0%, #1a1040 50%, #0d1f3d 100%);
+  background-attachment: fixed;
 }
 
-function BotPageClient({ params }: { params: Promise<{ botSlug: string }> }) {
-  // We need to unwrap params in client component
-  const [botName, setBotName] = useState<string>('default')
-
-  useEffect(() => {
-    params.then(p => setBotName(p.botSlug))
-  }, [params])
-
-  return <BotUI botName={botName} />
+.ambient {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  animation: float 20s ease-in-out infinite;
+}
+.ambient-one {
+  width: 340px; height: 340px;
+  background: rgba(99, 102, 241, 0.4);
+  top: -120px; right: -100px;
+  animation-delay: 0s;
+}
+.ambient-two {
+  width: 280px; height: 280px;
+  background: rgba(139, 92, 246, 0.35);
+  bottom: -100px; left: -80px;
+  animation-delay: -7s;
+}
+.ambient-three {
+  width: 240px; height: 240px;
+  background: rgba(6, 182, 212, 0.3);
+  top: 40%; right: -120px;
+  animation-delay: -14s;
 }
 
-function BotUI({ botName }: { botName: string }) {
-  const [step, setStep] = useState<'welcome' | 'upload'>('welcome')
-  const [number, setNumber] = useState('')
-  const [draftNumber, setDraftNumber] = useState('')
-  const [numberError, setNumberError] = useState('')
-  const [file, setFile] = useState<File | null>(null)
-  const [commentScreenshot, setCommentScreenshot] = useState<File | null>(null)
-  const [frames, setFrames] = useState<UploadImage[]>([])
-  const screenshotInputRef = useRef<HTMLInputElement>(null)
-  const [progress, setProgress] = useState(0)
-  const [status, setStatus] = useState('')
-  const [processing, setProcessing] = useState(false)
-  const [sending, setSending] = useState(false)
-  const [sent, setSent] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [dragging, setDragging] = useState(false)
-  const [playing, setPlaying] = useState(false)
-  const [videoDuration, setVideoDuration] = useState(0)
-  const [timelineTime, setTimelineTime] = useState(0)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const objectUrlRef = useRef<string | null>(null)
-  const botKey = /^bot\d{1,2}$/i.test(botName) ? botName.toLowerCase() : 'default'
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.1); }
+  66% { transform: translate(-20px, 30px) scale(0.95); }
+}
 
-  const [loadingTask, setLoadingTask] = useState(true)
-  const [task, setTask] = useState<TaskData | null>(null)
-  const [hasTask, setHasTask] = useState(false)
+.card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  background: var(--surface);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 1px 0 rgba(255, 255, 255, 0.1) inset;
+  overflow: hidden;
+}
 
-  useEffect(() => {
-    const savedNumber = window.localStorage.getItem('user_number_v1')
-    if (savedNumber && validNumber(savedNumber)) {
-      setNumber(savedNumber)
-      setStep('upload')
-    }
-    return () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current) }
-  }, [])
+/* ============================================================
+/* ============ HOME CARD (Task List) ========================
+/* ============================================================ */
+.home-card {
+  max-width: 420px;
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
 
-  useEffect(() => {
-    let cancelled = false
+.home-header {
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.home-title {
+  margin: 0 0 2px;
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.4px;
+  background: linear-gradient(135deg, #ffffff 0%, #a5b0c5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.home-sub {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-3);
+  font-weight: 500;
+}
 
-    async function fetchTask() {
-      try {
-        const res = await fetch(`${TASKS_API}/list.php?bot=${botKey}`)
-        const text = await res.text()
-        if (text.trim().startsWith('<')) throw new Error('Invalid response')
+/* ============ NUMBER BAR ============ */
+.number-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 12px 16px 8px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 12px;
+}
+.number-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.number-bar-left svg { color: #a5b4fc; flex-shrink: 0; }
+.number-bar-label {
+  font-size: 10px;
+  color: var(--text-3);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin-bottom: 1px;
+}
+.number-bar-value {
+  font-size: 13.5px;
+  color: var(--text);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
+.number-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+  flex-shrink: 0;
+}
+.number-edit-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(99, 102, 241, 0.5); }
+.number-edit-btn:active { transform: translateY(0); }
 
-        const data = JSON.parse(text)
-        if (cancelled) return
+/* ============ VIEW SUBMITTED BTN ============ */
+.view-submitted-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 16px 12px;
+  padding: 11px 14px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 11px;
+  color: #c4b5fd;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+.view-submitted-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #fff;
+  transform: translateY(-1px);
+}
 
-        if (data.has_task && data.tasks?.length > 0) {
-          setTask(data.tasks[0])
-          setHasTask(true)
-        } else {
-          setTask(null)
-          setHasTask(false)
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setTask(null)
-          setHasTask(false)
-        }
-      } finally {
-        if (!cancelled) setLoadingTask(false)
-      }
-    }
+/* ============ TASK LIST (Home) ============ */
+.task-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.task-list::-webkit-scrollbar { width: 5px; }
+.task-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
 
-    fetchTask()
-    const timer = setInterval(fetchTask, 7000)
+.task-list-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.18s ease;
+}
+.task-list-item:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.06);
+  transform: translateY(-1px);
+}
+.task-list-item:active { transform: translateY(0); }
 
-    return () => {
-      cancelled = true
-      clearInterval(timer)
-    }
-  }, [botKey])
+.task-list-thumb-wrap {
+  position: relative;
+  width: 100px;
+  height: 70px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+.task-list-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.task-list-badge {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 8.5px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.task-list-badge.watch-full {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+}
+.task-list-badge.watch-minutes {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4);
+}
 
-  useEffect(() => {
-    const video = videoRef.current
-    const url = objectUrlRef.current
-    if (!video || !file || !url) return
+.task-list-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.task-list-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.task-list-bot {
+  display: inline-block;
+  padding: 2px 7px;
+  background: rgba(99, 102, 241, 0.2);
+  color: #c4b5fd;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.task-list-slots {
+  font-size: 10.5px;
+  color: #a5b4fc;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.task-list-slots strong { color: #fff; font-weight: 800; }
 
-    video.onloadedmetadata = () => { setVideoDuration(video.duration || 0); setTimelineTime(0) }
-    video.ontimeupdate = () => setTimelineTime(video.currentTime)
-    video.onloadeddata = () => {
-      video.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
-      setProcessing(true)
-      setProgress(0)
-      processVideo().then(captured => {
-        setFrames(captured)
-        setProgress(100)
-      }).catch(() => setStatus('Could not process video')).finally(() => setProcessing(false))
-    }
-    video.onerror = () => setStatus('Video could not be loaded')
-    video.preload = 'auto'
-    video.src = url
-    video.load()
+.task-list-title {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.task-list-channel {
+  margin: 0;
+  font-size: 10px;
+  color: #67e8f9;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-    return () => {
-      video.onloadeddata = null
-      video.onerror = null
-    }
-  }, [file])
+.task-list-bar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+.task-list-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
 
-  const validNumber = (value: string) => /^\d{10}$/.test(value.trim())
-  const formatTime = (seconds: number) => `${Math.floor(Math.max(0, seconds) / 60)}:${String(Math.floor(Math.max(0, seconds) % 60)).padStart(2, '0')}`
+.task-list-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+.task-list-remaining {
+  font-size: 9.5px;
+  color: #6b7789;
+  font-weight: 600;
+}
+.task-list-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: #a5b4fc;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+.task-list-open svg { width: 10px; height: 10px; }
 
-  const getCapturePoints = (duration: number) => {
-    let points: number[]
-    if (duration >= 240 && duration <= 360) points = [1, 30, 40, 60, 90]
-    else if (duration >= 180) points = [1, 25, 40, 60, 90]
-    else if (duration >= 120) points = [1, 25, 40, 60, 90]
-    else points = [1, 15, 30, 50, 70]
+/* ============================================================
+/* ============ WELCOME ======================================
+/* ============================================================ */
+.welcome {
+  padding: 40px 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
-    const endFrame = Math.max(1, Math.floor(duration) - 1)
-    if (!points.includes(endFrame) && endFrame > 0) points.push(endFrame)
-    return points
+.welcome-icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: 16px;
+  color: #fff;
+  box-shadow:
+    0 12px 32px rgba(99, 102, 241, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  margin-bottom: 4px;
+}
+.welcome-icon svg { width: 24px; height: 24px; }
+
+.welcome h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--text);
+  line-height: 1.2;
+  background: linear-gradient(135deg, #ffffff 0%, #a5b0c5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.welcome-sub {
+  margin: -12px 0 0;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.welcome-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.welcome-form label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  letter-spacing: 0.3px;
+}
+
+.input {
+  width: 100%;
+  height: 52px;
+  padding: 0 16px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  outline: none;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  text-align: center;
+}
+.input::placeholder {
+  color: var(--text-3);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.input:focus {
+  border-color: rgba(99, 102, 241, 0.6);
+  background: rgba(99, 102, 241, 0.08);
+  box-shadow:
+    0 0 0 4px rgba(99, 102, 241, 0.15),
+    0 0 20px rgba(99, 102, 241, 0.1);
+}
+
+/* ============================================================
+/* ============ BUTTONS ======================================
+/* ============================================================ */
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 52px;
+  padding: 0 20px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  box-shadow:
+    0 8px 24px rgba(99, 102, 241, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #7c7ff5 0%, #9d6fff 100%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.btn-primary:hover:not(:disabled)::before { opacity: 1; }
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 32px rgba(99, 102, 241, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+.btn-primary:active:not(:disabled) { transform: translateY(0); }
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn-primary svg { flex-shrink: 0; position: relative; z-index: 1; }
+.btn-primary > * { position: relative; z-index: 1; }
+.btn-primary.ready {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow:
+    0 8px 24px rgba(16, 185, 129, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+.btn-primary.ready:hover:not(:disabled) {
+  box-shadow:
+    0 12px 32px rgba(16, 185, 129, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.btn-ghost {
+  height: 52px;
+  padding: 0 20px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  border-color: var(--border-hover);
+}
+
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.icon-btn:hover {
+  color: var(--text);
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.08);
+}
+.icon-btn:active { transform: scale(0.94); }
+
+.secure-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--text-3);
+  text-align: center;
+  line-height: 1.4;
+}
+.secure-note svg { flex-shrink: 0; opacity: 0.7; }
+
+.error {
+  font-size: 12px;
+  color: #fca5a5;
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+/* ============================================================
+/* ============ UPLOAD =======================================
+/* ============================================================ */
+.upload {
+  padding: 24px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.top-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.top h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+.bot-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.2));
+  color: #c4b5fd;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 13px;
+}
+.account-label {
+  color: var(--text-3);
+  font-weight: 500;
+}
+.account-value {
+  color: var(--text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+
+.picker-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1.5px dashed var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  color: inherit;
+  min-height: 130px;
+  text-align: center;
+}
+.pick:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.06);
+  transform: translateY(-2px);
+}
+.pick.dragging {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.12);
+  transform: scale(1.02);
+}
+.pick.done {
+  border-style: solid;
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.pick-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.15));
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 12px;
+  color: #a5b4fc;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+.pick.done .pick-icon {
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(16, 185, 129, 0.1));
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.pick-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pick-text strong {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+.pick-text span {
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.3;
+}
+.pick.done .pick-text strong { color: #6ee7b7; }
+
+.preview {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000;
+  aspect-ratio: 16 / 10;
+  border: 1px solid var(--border);
+}
+.preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #000;
+}
+
+.play-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.95);
+  border: none;
+  border-radius: 50%;
+  color: #000;
+  cursor: pointer;
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.4),
+    0 0 0 4px rgba(255, 255, 255, 0.15);
+  transition: all 0.15s ease;
+  backdrop-filter: blur(10px);
+}
+.play-btn:hover { transform: translate(-50%, -50%) scale(1.08); }
+.play-btn:active { transform: translate(-50%, -50%) scale(0.94); }
+
+.preview-tags {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  gap: 5px;
+}
+.tag {
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.timeline-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.timeline-head .time {
+  color: #a5b4fc;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-bar {
+  position: relative;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: visible;
+}
+.timeline-fill {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
+  border-radius: 3px;
+  transition: width 0.1s linear;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.6);
+}
+.timeline-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.dot {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: #0a1628;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  transition: all 0.25s ease;
+}
+.dot.passed {
+  background: #10b981;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25), 0 0 12px rgba(16, 185, 129, 0.6);
+}
+.dot.current {
+  border-color: #8b5cf6;
+  background: #0a1628;
+  transform: translate(-50%, -50%) scale(1.4);
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.3), 0 0 16px rgba(139, 92, 246, 0.5);
+  animation: dot-pulse 1s infinite;
+}
+@keyframes dot-pulse {
+  50% { box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.15), 0 0 16px rgba(139, 92, 246, 0.5); }
+}
+
+.ready {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--success-soft);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
+}
+.ready-check {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-radius: 50%;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+.ready-check svg { width: 16px; height: 16px; }
+.ready > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ready strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+.ready span {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.3;
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+}
+.progress-head span {
+  color: var(--text-2);
+  font-weight: 500;
+}
+.progress-head strong {
+  color: #a5b4fc;
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.progress-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.6);
+}
+
+.status-msg {
+  font-size: 12.5px;
+  color: var(--text-2);
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* ============================================================
+/* ============ MODALS =======================================
+/* ============================================================ */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(5, 10, 25, 0.8);
+  backdrop-filter: blur(16px);
+  animation: fadeIn 0.25s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  width: 100%;
+  max-width: 360px;
+  padding: 24px;
+  background: rgba(20, 26, 40, 0.95);
+  backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: pop 0.3s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+@keyframes pop {
+  from { transform: scale(0.94); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-head h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+
+.modal.success {
+  text-align: center;
+  padding: 32px 24px 24px;
+  gap: 8px;
+}
+.modal.success .success-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-radius: 50%;
+  color: #fff;
+  margin: 0 auto 8px;
+  box-shadow:
+    0 16px 40px rgba(16, 185, 129, 0.4),
+    0 0 0 6px rgba(16, 185, 129, 0.1);
+  animation: pop 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.modal.success .success-icon svg { width: 28px; height: 28px; }
+.modal.success h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+.modal.success p {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* ============================================================
+/* ============ SUBMISSIONS LINK =============================
+/* ============================================================ */
+.submissions-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+  color: #c4b5fd;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+.submissions-link:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.25);
+}
+.submissions-link:active {
+  transform: translateY(0);
+}
+.submissions-link svg {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+/* ============================================================
+/* ============ STATE BOXES ==================================
+/* ============================================================ */
+.state-box {
+  padding: 60px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.state-icon {
+  font-size: 56px;
+  margin-bottom: 8px;
+  opacity: 0.85;
+}
+.state-icon-over { filter: hue-rotate(340deg) saturate(1.5); }
+.state-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.3px;
+  margin: 0;
+}
+.state-sub {
+  font-size: 13.5px;
+  color: var(--text-2);
+  margin: 0;
+  line-height: 1.5;
+}
+.state-text {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-top: 12px;
+}
+.state-stats {
+  margin-top: 16px;
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.state-stats strong {
+  font-size: 20px;
+  font-weight: 800;
+  color: #fca5a5;
+}
+.state-stats span {
+  font-size: 13px;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+/* ============ SPINNER ============ */
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(99, 102, 241, 0.15);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+/* ============ TASK HERO (BIG THUMBNAIL) ====================
+/* ============================================================ */
+.task-hero {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 210px;
+  background: #000;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+.task-hero-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ============ WATCH HIGHLIGHT BADGE ============ */
+.task-hero-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  color: #fff;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border: none;
+}
+.task-hero-badge.watch-full {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+}
+.task-hero-badge.watch-minutes {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+}
+
+/* ============================================================
+/* ============ TASK INFO BLOCK ==============================
+/* ============================================================ */
+.task-info-block {
+  padding: 14px 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.task-hero-title {
+  position: relative;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.4;
+  margin: 0;
+  padding-left: 12px;
+  letter-spacing: -0.2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.task-hero-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #6366f1, #8b5cf6, #06b6d4);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.6);
+}
+
+/* ============ CHANNEL ROW ============ */
+.channel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.task-hero-channel-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(99, 102, 241, 0.15));
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: 20px;
+  max-width: 100%;
+  min-width: 0;
+}
+.task-hero-channel-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #06b6d4, #6366f1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+}
+.task-hero-channel {
+  font-size: 11.5px;
+  color: #67e8f9;
+  font-weight: 700;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+.channel-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+.channel-number {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a5b4fc;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.channel-edit-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.2);
+  border: none;
+  border-radius: 50%;
+  color: #c4b5fd;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.channel-edit-btn:hover {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  transform: scale(1.1);
+}
+.channel-edit-btn:active { transform: scale(0.95); }
+
+/* ============ TAGS ============ */
+.tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 2px;
+}
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 20px;
+  color: #c4b5fd;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  line-height: 1.3;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag-chip:hover {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.25));
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+.tag-chip:active { transform: translateY(0); }
+.tag-chip svg {
+  flex-shrink: 0;
+  opacity: 0.65;
+  width: 10px;
+  height: 10px;
+}
+
+/* ============ LIVE COUNTER ============ */
+.live-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 9px 11px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+}
+.live-counter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.live-dot-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #10b981;
+  font-size: 10px;
+}
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse-dot 1.5s ease infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+.live-count {
+  color: #a5b4fc;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 800;
+}
+.live-bar {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.live-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
+/* ============ DIVIDER ============ */
+.divider {
+  height: 1px;
+  margin: 10px 0 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+}
+
+/* ============ COMPACT WELCOME / UPLOAD ============ */
+.compact-welcome {
+  padding: 20px 20px 18px;
+  gap: 12px;
+}
+.compact-welcome h1 {
+  font-size: 20px;
+}
+.compact-welcome .welcome-sub {
+  font-size: 12.5px;
+}
+.compact-upload {
+  padding: 16px 18px 16px;
+  gap: 10px;
+}
+.compact-upload .top h2 {
+  font-size: 15px;
+}
+.compact-upload .account {
+  padding: 10px 14px;
+  font-size: 12px;
+}
+.compact-upload .pick {
+  min-height: 80px;
+  padding: 12px 8px;
+  gap: 6px;
+}
+.compact-upload .pick-icon {
+  width: 34px;
+  height: 34px;
+}
+.compact-upload .pick-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.compact-upload .pick-text strong {
+  font-size: 12px;
+}
+.compact-upload .pick-text span {
+  font-size: 10px;
+}
+.compact-upload .timeline {
+  padding: 10px 12px;
+  gap: 6px;
+}
+.compact-upload .timeline-head {
+  font-size: 11px;
+}
+.compact-upload .progress {
+  padding: 10px 12px;
+  gap: 8px;
+}
+.compact-upload .progress-head {
+  font-size: 12px;
+}
+.compact-upload .progress-head strong {
+  font-size: 16px;
+}
+.compact-upload .ready {
+  padding: 10px 12px;
+  gap: 10px;
+}
+.compact-upload .ready strong {
+  font-size: 13px;
+}
+.compact-upload .ready span {
+  font-size: 11px;
+}
+.compact-upload .ready-check {
+  width: 28px;
+  height: 28px;
+}
+.compact-upload .actions {
+  gap: 8px;
+}
+.compact-upload .btn-ghost,
+.compact-upload .btn-primary {
+  height: 44px;
+  font-size: 13.5px;
+}
+
+/* ============ SMALLER VIDEO PREVIEW ============ */
+.preview-small {
+  aspect-ratio: 16 / 9;
+  max-height: 90px;
+  max-width: 180px;
+  margin: 0 auto;
+}
+.preview-small video {
+  max-height: 90px;
+}
+.play-btn-small {
+  width: 30px;
+  height: 30px;
+}
+.play-btn-small svg {
+  width: 12px;
+  height: 12px;
+}
+.preview-small .preview-tags {
+  bottom: 5px;
+  right: 5px;
+  gap: 3px;
+}
+.preview-small .tag {
+  padding: 3px 6px;
+  font-size: 9px;
+}
+
+/* ============ BACK HOME LINK ============ */
+.back-home-link {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 16px;
+  padding: 10px 18px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 12px;
+  color: #c4b5fd;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+.back-home-link:hover {
+  background: rgba(99, 102, 241, 0.2);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+/* ============================================================
+/* ============ RESPONSIVE ===================================
+/* ============================================================ */
+@media (max-width: 420px) {
+  .app-shell {
+    padding: 12px;
+    align-items: flex-start;
+    padding-top: 16px;
   }
+  .card { border-radius: 20px; }
+  .welcome { padding: 32px 22px 26px; }
+  .upload { padding: 20px 18px 18px; }
+  .welcome h1 { font-size: 22px; }
+  .pick { min-height: 118px; padding: 16px 10px; }
+  .pick-icon { width: 40px; height: 40px; }
+  .task-hero { max-height: 180px; }
+  .task-info-block { padding: 12px 14px 10px; gap: 8px; }
+  .task-hero-title { font-size: 13px; }
+  .task-hero-channel { font-size: 10.5px; }
+  .channel-number { font-size: 10px; }
+  .channel-edit-btn { width: 20px; height: 20px; }
+  .tag-chip { font-size: 10px; padding: 5px 10px; }
+  .compact-welcome { padding: 18px 18px 16px; }
+  .compact-upload { padding: 14px 16px; }
+  .preview-small { max-height: 80px; max-width: 160px; }
+  .preview-small video { max-height: 80px; }
+  .play-btn-small { width: 28px; height: 28px; }
+  .state-box { padding: 50px 20px; }
+  .home-card { border-radius: 20px; }
+  .home-header { padding: 16px 18px 10px; }
+  .home-title { font-size: 17px; }
+  .task-list-item { padding: 8px; gap: 8px; }
+  .task-list-thumb-wrap { width: 85px; height: 60px; }
+  .task-list-title { font-size: 10.5px; }
+  .task-list-channel { font-size: 9px; }
+}
 
-  function continueToUpload() {
-    const value = number.trim()
-    if (!validNumber(value)) { setNumberError('Enter a valid 10-digit number'); return }
-    setNumberError(''); setNumber(value); window.localStorage.setItem('user_number_v1', value); setStep('upload')
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
-
-  function saveNumber() {
-    const value = draftNumber.trim()
-    if (!validNumber(value)) { setNumberError('Enter a valid 10-digit number'); return }
-    setNumberError(''); setNumber(value); window.localStorage.setItem('user_number_v1', value); setEditOpen(false)
-  }
-
-  async function compressScreenshot(selected: File): Promise<File> {
-    const bitmap = await createImageBitmap(selected)
-    const maxSide = 1600
-    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height))
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
-    const context = canvas.getContext('2d')
-    if (!context) return selected
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-    bitmap.close()
-    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
-    return blob ? new File([blob], 'comment-screenshot.jpg', { type: 'image/jpeg' }) : selected
-  }
-
-  async function chooseScreenshot(selected: File | undefined) {
-    if (!selected || !selected.type.startsWith('image/')) { setStatus('Please choose an image'); return }
-    try {
-      const compressed = await compressScreenshot(selected)
-      setCommentScreenshot(compressed)
-    } catch { setStatus('Could not process screenshot') }
-  }
-
-  function chooseFile(selected: File | undefined) {
-    if (!selected || !selected.type.startsWith('video/')) { setStatus('Please choose a video file'); return }
-    if (selected.size > 100 * 1024 * 1024) { setStatus('Video must be under 100 MB'); return }
-    setFile(selected); setFrames([]); setProgress(0); setProcessing(false); setStatus(''); setVideoDuration(0)
-    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
-    const url = URL.createObjectURL(selected); objectUrlRef.current = url
-  }
-
-  async function processVideo() {
-    const video = videoRef.current
-    if (!video) throw new Error('Video not loaded')
-    if (!video.videoWidth) {
-      await new Promise<void>((resolve, reject) => {
-        const onReady = () => { cleanup(); resolve() }
-        const onError = () => { cleanup(); reject(new Error('Video not loaded')) }
-        const cleanup = () => {
-          video.removeEventListener('loadedmetadata', onReady)
-          video.removeEventListener('canplay', onReady)
-          video.removeEventListener('error', onError)
-        }
-        video.addEventListener('loadedmetadata', onReady, { once: true })
-        video.addEventListener('canplay', onReady, { once: true })
-        video.addEventListener('error', onError, { once: true })
-      })
-    }
-    if (!video.videoWidth || !Number.isFinite(video.duration)) throw new Error('Video not loaded')
-    const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    const context = canvas.getContext('2d', { willReadFrequently: true })
-    if (!context) return
-    const captureTargets = getCapturePoints(video.duration).filter(second => second < video.duration)
-    if (!captureTargets.length) captureTargets.push(Math.max(0, video.duration / 2))
-    const captured: UploadImage[] = []
-    video.pause()
-    video.muted = true
-
-    const seekAndWait = (targetTime: number) => new Promise<void>(resolve => {
-      if (Math.abs(video.currentTime - targetTime) < 0.05 && video.readyState >= 2) {
-        requestAnimationFrame(() => resolve()); return
-      }
-      let done = false
-      let timeout = 0
-      const finish = () => {
-        if (done) return
-        done = true
-        video.removeEventListener('seeked', finish)
-        window.clearTimeout(timeout)
-        requestAnimationFrame(() => resolve())
-      }
-      video.addEventListener('seeked', finish, { once: true })
-      try { video.currentTime = targetTime } catch { finish(); return }
-      timeout = window.setTimeout(finish, 3000)
-    })
-
-    const animateTimeline = (from: number, to: number, duration: number) => new Promise<void>(resolve => {
-      const start = performance.now()
-      const step = (now: number) => {
-        const p = Math.min(1, (now - start) / duration)
-        setTimelineTime(from + (to - from) * (1 - Math.pow(1 - p, 3)))
-        if (p < 1) requestAnimationFrame(step); else resolve()
-      }
-      requestAnimationFrame(step)
-    })
-
-    for (let i = 0; i < captureTargets.length; i++) {
-      await animateTimeline(video.currentTime, captureTargets[i], 400)
-      await seekAndWait(captureTargets[i])
-      context.clearRect(0, 0, canvas.width, canvas.height)
-      context.drawImage(video, 0, 0, canvas.width, canvas.height)
-      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9))
-      if (blob && blob.size > 1000) captured.push({ blob, index: i })
-      setProgress(Math.round(((i + 1) / captureTargets.length) * 100))
-    }
-    return captured
-  }
-
-  function togglePlay() {
-    const video = videoRef.current
-    if (!video) return
-    if (video.paused) { video.play(); setPlaying(true) } else { video.pause(); setPlaying(false) }
-  }
-
-  function handleTagClick(tag: string) {
-    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(tag)}&sp=EgIIAQ%253D%253D`
-    window.open(searchUrl, '_blank')
-  }
-
-  async function submit() {
-    if (!file || !commentScreenshot || sending) return
-    if (!frames.length || processing || progress < 100) return
-    setSending(true)
-    try {
-      const frameTimes = getCapturePoints(videoDuration).filter(second => second < videoDuration)
-      const form = new FormData()
-      form.append('phoneNumber', number)
-      form.append('bot', botKey)
-      form.append('videoName', file.name)
-      form.append('videoDuration', String(Math.round(videoDuration)))
-      form.append('frameTimes', JSON.stringify(frameTimes))
-      if (frames[0]) form.append('photo0', frames[0].blob, 'upload-1.jpg')
-      form.append('photo1', commentScreenshot, 'comment-screenshot.jpg')
-      frames.slice(1).forEach((frame, index) => form.append(`photo${index + 2}`, frame.blob, `upload-${index + 2}.jpg`))
-      const response = await fetch('/api/upload', { method: 'POST', body: form })
-      const result = await response.json().catch(() => null)
-      if (!response.ok) throw new Error(result?.error || 'Send failed')
-      setSent(true)
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not send')
-    } finally {
-      setSending(false)
-    }
-  }
-
-  function handleDrop(event: DragEvent<HTMLDivElement>) { event.preventDefault(); setDragging(false); chooseFile(event.dataTransfer.files[0]) }
-  function handleChange(event: ChangeEvent<HTMLInputElement>) { chooseFile(event.target.files?.[0]) }
-
-  const canSubmit = file && commentScreenshot && frames.length > 0 && progress === 100 && !processing && !sending
-  const videoReady = file && !processing && frames.length > 0
-
-  return (
-    <main className="app-shell">
-      <div className="ambient ambient-one" />
-      <div className="ambient ambient-two" />
-      <div className="ambient ambient-three" />
-
-      <div className="card">
-        {loadingTask && (
-          <div className="state-box">
-            <div className="spinner" />
-            <p className="state-text">Loading...</p>
-          </div>
-        )}
-
-        {!loadingTask && !hasTask && (
-          <div className="state-box">
-            <div className="state-icon">📅</div>
-            <h2 className="state-title">No task available today</h2>
-            <p className="state-sub">Please check back later</p>
-            <Link href="/" className="back-home-link">← Back to all tasks</Link>
-          </div>
-        )}
-
-        {!loadingTask && hasTask && task?.is_over && (
-          <div className="state-box">
-            <div className="state-icon state-icon-over">⏹</div>
-            <h2 className="state-title">Task Over</h2>
-            <p className="state-sub">All entries received. No more submissions.</p>
-            <div className="state-stats">
-              <strong>{task.completed_count}</strong>
-              <span>/ {task.user_limit} submitted</span>
-            </div>
-            <Link href="/" className="back-home-link">← Back to all tasks</Link>
-          </div>
-        )}
-
-        {!loadingTask && hasTask && task && !task.is_over && (
-          <>
-            <div className="task-hero">
-              <img
-                src={task.thumbnail}
-                alt=""
-                className="task-hero-img"
-                onError={(e) => {
-                  const img = e.target as HTMLImageElement
-                  img.onerror = null
-                  const m = task.thumbnail.match(/\/vi\/([^\/]+)\//)
-                  if (m && m[1]) img.src = `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`
-                }}
-              />
-              <div className={`task-hero-badge ${task.watch_type === 'full' ? 'watch-full' : 'watch-minutes'}`}>
-                {task.watch_type === 'full'
-                  ? '▶ WATCH FULL VIDEO'
-                  : `⏱ WATCH ${task.watch_minutes} MINUTES ONLY`}
-              </div>
-            </div>
-
-            <div className="task-info-block">
-              <h2 className="task-hero-title">{task.title}</h2>
-
-              <div className="channel-row">
-                <div className="task-hero-channel-wrap">
-                  <div className="task-hero-channel-icon">
-                    {task.channel.charAt(0).toUpperCase()}
-                  </div>
-                  <p className="task-hero-channel">{task.channel}</p>
-                </div>
-
-                <div className="channel-right">
-                  <span className="channel-number">{number || '—'}</span>
-                  <button
-                    className="channel-edit-btn"
-                    onClick={() => { setDraftNumber(number); setEditOpen(true) }}
-                    aria-label="Edit number"
-                  >
-                    <Icons.Edit />
-                  </button>
-                </div>
-              </div>
-
-              {task.tags && (
-                <div className="tags-wrap">
-                  {task.tags
-                    .split(/[\n,]+/)
-                    .map(t => t.trim())
-                    .filter(Boolean)
-                    .map((tag, i) => (
-                      <button key={i} className="tag-chip" onClick={() => handleTagClick(tag)}>
-                        {tag}
-                        <Icons.External />
-                      </button>
-                    ))}
-                </div>
-              )}
-
-              <div className="live-counter">
-                <div className="live-counter-head">
-                  <span className="live-dot-wrap">
-                    <span className="live-dot" />
-                    LIVE
-                  </span>
-                  <span className="live-count">
-                    {task.completed_count} / {task.user_limit}
-                  </span>
-                </div>
-                <div className="live-bar">
-                  <div
-                    className="live-fill"
-                    style={{ width: `${Math.min(100, (task.completed_count / task.user_limit) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="divider" />
-
-            {step === 'welcome' ? (
-              <div className="welcome compact-welcome">
-                <h1>Upload your video</h1>
-                <p className="welcome-sub">Enter your phone number to continue</p>
-
-                <div className="welcome-form">
-                  <label htmlFor="number">Phone number</label>
-                  <input
-                    id="number"
-                    className="input"
-                    type="tel"
-                    inputMode="numeric"
-                    placeholder="9876543210"
-                    value={number}
-                    onChange={e => { setNumber(e.target.value.replace(/\D/g, '').slice(0, 10)); setNumberError('') }}
-                    onKeyDown={e => { if (e.key === 'Enter') continueToUpload() }}
-                  />
-                  {numberError && <div className="error">{numberError}</div>}
-                </div>
-
-                <button className="btn-primary" onClick={continueToUpload}>
-                  Continue
-                  <Icons.Arrow />
-                </button>
-              </div>
-            ) : (
-              <div className="upload compact-upload">
-                <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
-                <input ref={screenshotInputRef} type="file" accept="image/*" hidden onChange={e => { void chooseScreenshot(e.target.files?.[0]) }} />
-
-                <div className="picker-row">
-                  <button
-                    className={`pick ${file ? 'done' : ''} ${dragging ? 'dragging' : ''}`}
-                    onClick={() => inputRef.current?.click()}
-                    onDragOver={e => { e.preventDefault(); setDragging(true) }}
-                    onDragLeave={() => setDragging(false)}
-                    onDrop={handleDrop}
-                  >
-                    <div className="pick-icon">
-                      {file ? <Icons.Check /> : <Icons.Video />}
-                    </div>
-                    <div className="pick-text">
-                      <strong>{file ? 'Video ready' : 'Video'}</strong>
-                      <span>{file ? 'Tap to change' : 'Max 100 MB'}</span>
-                    </div>
-                  </button>
-
-                  <button
-                    className={`pick ${commentScreenshot ? 'done' : ''}`}
-                    onClick={() => screenshotInputRef.current?.click()}
-                  >
-                    <div className="pick-icon">
-                      {commentScreenshot ? <Icons.Check /> : <Icons.Camera />}
-                    </div>
-                    <div className="pick-text">
-                      <strong>{commentScreenshot ? 'Ready' : 'Comment'}</strong>
-                      <span>{commentScreenshot ? 'Tap to change' : 'Screenshot'}</span>
-                    </div>
-                  </button>
-                </div>
-
-                {file && (
-                  <>
-                    <div className="preview preview-small">
-                      <video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
-                      <button className="play-btn play-btn-small" onClick={togglePlay}>
-                        {playing ? <Icons.Pause /> : <Icons.Play />}
-                      </button>
-                      <div className="preview-tags">
-                        <span className="tag">{videoDuration > 0 ? formatTime(videoDuration) : '--:--'}</span>
-                        <span className="tag">{(file.size / (1024 * 1024)).toFixed(1)} MB</span>
-                      </div>
-                    </div>
-
-                    {!videoReady && videoDuration > 0 && (
-                      <div className="timeline">
-                        <div className="timeline-head">
-                          <span>Processing</span>
-                          <span className="time">{formatTime(timelineTime)} / {formatTime(videoDuration)}</span>
-                        </div>
-                        <div className="timeline-bar">
-                          <div className="timeline-fill" style={{ width: `${(timelineTime / videoDuration) * 100}%` }} />
-                          <div className="timeline-markers">
-                            {getCapturePoints(videoDuration).map((point) => point <= videoDuration && (
-                              <span
-                                key={point}
-                                className={`dot ${timelineTime > point + 0.5 ? 'passed' : Math.abs(timelineTime - point) < 0.5 ? 'current' : ''}`}
-                                style={{ left: `${(point / videoDuration) * 100}%` }}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {videoReady && (
-                      <div className="ready">
-                        <div className="ready-check"><Icons.Check /></div>
-                        <div>
-                          <strong>Ready to submit</strong>
-                          <span>All set</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {processing && !videoReady && (
-                      <div className="progress">
-                        <div className="progress-head">
-                          <span>Preparing</span>
-                          <strong>{progress}%</strong>
-                        </div>
-                        <div className="progress-bar">
-                          <div className="progress-fill" style={{ width: `${progress}%` }} />
-                        </div>
-                      </div>
-                    )}
-
-                    {status && !processing && (
-                      <div className="status-msg">{status}</div>
-                    )}
-
-                    <div className="actions">
-                      <button className="btn-ghost" onClick={() => { setFile(null); setFrames([]); setProgress(0); setVideoDuration(0); setStatus('') }}>
-                        Change
-                      </button>
-                      <button className={`btn-primary ${canSubmit ? 'ready' : ''}`} disabled={!canSubmit} onClick={submit}>
-                        {sending ? 'Sending...' : 'Submit'}
-                        {!sending && <Icons.Arrow />}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {editOpen && (
-        <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setEditOpen(false) }}>
-          <div className="modal">
-            <div className="modal-head">
-              <h3>Edit number</h3>
-              <button className="icon-btn" onClick={() => setEditOpen(false)} aria-label="Close">
-                <Icons.X />
-              </button>
-            </div>
-            <input
-              autoFocus
-              className="input"
-              type="tel"
-              inputMode="numeric"
-              value={draftNumber}
-              onChange={e => { setDraftNumber(e.target.value.replace(/\D/g, '').slice(0, 10)); setNumberError('') }}
-              onKeyDown={e => { if (e.key === 'Enter') saveNumber() }}
-              placeholder="9876543210"
-            />
-            {numberError && <div className="error">{numberError}</div>}
-            <button className="btn-primary" onClick={saveNumber}>Save</button>
-          </div>
-        </div>
-      )}
-
-      {sent && (
-        <div className="modal-backdrop">
-          <div className="modal success">
-            <div className="success-icon"><Icons.Check /></div>
-            <h3>Submitted</h3>
-            <p>Your video has been sent successfully</p>
-            <button className="btn-primary" onClick={() => setSent(false)}>Done</button>
-          </div>
-        </div>
-      )}
-    </main>
-  )
+  .ambient { animation: none; }
 }
