@@ -140,7 +140,7 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
     return () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current) }
   }, [])
 
-  // ============ FETCH TASK (with 7s auto-refresh) ============
+  // ============ FETCH TASK (7s auto-refresh) ============
   useEffect(() => {
     let cancelled = false
 
@@ -339,32 +339,9 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
     if (video.paused) { video.play(); setPlaying(true) } else { video.pause(); setPlaying(false) }
   }
 
-  // ============ INCREMENT TASK COUNT ============
-  async function incrementTaskCount() {
-    if (!task) return
-    try {
-      const res = await fetch(`${TASKS_API}/increment.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task_id: task.id, bot: botKey }),
-      })
-      const data = await res.json()
-      if (data.ok) {
-        setTask(prev => prev ? {
-          ...prev,
-          completed_count: data.completed_count,
-          is_over: data.is_over,
-        } : prev)
-      }
-    } catch (e) {
-      console.warn('Increment failed', e)
-    }
-  }
-
   // ============ WATCH BUTTON CLICK ============
   function handleWatchClick() {
-    if (!task) return
-    incrementTaskCount()
+    // Just opens YouTube — count is auto-tracked via uploads folder
   }
 
   // ============ TAG CLICK → YOUTUBE SEARCH ============
@@ -392,8 +369,8 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
       const result = await response.json().catch(() => null)
       if (!response.ok) throw new Error(result?.error || 'Send failed')
 
-      await incrementTaskCount()
       setSent(true)
+      // Counter auto-updates on next 7s refresh
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Could not send')
     } finally {
@@ -457,7 +434,6 @@ export default function Page({ botName = 'default' }: { botName?: string }) {
                   onError={(e) => {
                     const img = e.target as HTMLImageElement
                     img.onerror = null
-                    // Extract video id from thumbnail url
                     const m = task.thumbnail.match(/\/vi\/([^\/]+)\//)
                     if (m && m[1]) img.src = `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`
                   }}
