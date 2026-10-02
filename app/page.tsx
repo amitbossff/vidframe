@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 type TaskListing = {
   id: string
   bot: string
+  amount: number
   title: string
   channel: string
   thumbnail: string
@@ -124,6 +125,7 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* ============ NUMBER BAR ============ */}
         <div className="number-bar">
           <div className="number-bar-left">
             <Icons.Phone />
@@ -141,15 +143,14 @@ export default function HomePage() {
           </button>
         </div>
 
-        <a
-  href={USER_PANEL}
-  className="view-submitted-btn"
->
+        {/* ============ VIEW SUBMITTED ============ */}
+        <a href={USER_PANEL} className="view-submitted-btn">
           <Icons.Folder />
           <span>View My Submitted Tasks</span>
           <Icons.External />
         </a>
 
+        {/* ============ LOADING ============ */}
         {loading && (
           <div className="state-box" style={{ padding: '40px 20px' }}>
             <div className="spinner" />
@@ -157,6 +158,7 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* ============ NO TASKS ============ */}
         {!loading && tasks.length === 0 && (
           <div className="state-box" style={{ padding: '40px 20px' }}>
             <div className="state-icon">📅</div>
@@ -165,6 +167,7 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* ============ TASK LIST ============ */}
         {!loading && tasks.length > 0 && (
           <div className="task-list">
             {tasks.map(t => {
@@ -198,6 +201,12 @@ export default function HomePage() {
                       <span className="task-list-bot">{t.bot}</span>
                       <span className="task-list-slots">
                         <strong>{t.completed_count}</strong>/{t.user_limit}
+                        {t.amount > 0 && (
+                          <>
+                            <span className="task-list-dot">·</span>
+                            <span className="task-list-amount">₹{t.amount}</span>
+                          </>
+                        )}
                       </span>
                     </div>
 
@@ -224,6 +233,7 @@ export default function HomePage() {
         )}
       </div>
 
+      {/* ============ EDIT NUMBER MODAL ============ */}
       {editOpen && (
         <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setEditOpen(false) }}>
           <div className="modal">
