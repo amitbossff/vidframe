@@ -18,6 +18,7 @@ X:()=>(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="curre
 External:()=>(<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>),
 Alert:()=>(<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>),
 Home:()=>(<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>),
+Stop:()=>(<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/></svg>),
 }
 
 const TASKS_API='https://amittg.online/video/tasks/api'
@@ -112,7 +113,8 @@ function BotUI({botName}:{botName:string}){
       }
     }
     f()
-    const tm=setInterval(f,7000)
+    // 🔥 Faster refresh: 3 seconds
+    const tm=setInterval(f,3000)
     return()=>{c=true;clearInterval(tm)}
   },[botKey,number])
 
@@ -306,7 +308,6 @@ function BotUI({botName}:{botName:string}){
         const r=await fetch('/api/upload',{method:'POST',body:form})
         const d=await r.json().catch(()=>null)
         if(!r.ok)throw new Error(d?.error||'Send failed')
-        // Save video URL for preview before clearing
         if(objectUrlRef.current){
           setSubmittedVideoUrl(objectUrlRef.current)
           objectUrlRef.current=null
@@ -325,6 +326,14 @@ function BotUI({botName}:{botName:string}){
 
   const canSubmit=file&&commentScreenshot&&frames.length>0&&progress===100&&!processing&&!sending
   const videoReady=file&&!processing&&frames.length>0
+
+  // ============ KEY LOGIC ============
+  // Priority: user_submitted > is_over
+  // If user submitted → show submitted/final/resubmit UI (allows edit even if task is over)
+  // If user NOT submitted + task over → show "Task Over" state
+  const showTaskOver = hasTask && task?.is_over && !userSubmitted
+  const showResubmitAllowed = userSubmitted && canResubmit  // allows edit till midnight
+  const showActive = hasTask && task && !showTaskOver
 
   return(
     <main className="app-shell">
@@ -362,21 +371,35 @@ function BotUI({botName}:{botName:string}){
           </div>
         )}
 
-        {!loadingTask&&number&&hasTask&&task?.is_over&&(
-          <div className="state-box">
-            <div className="state-icon state-icon-over">⏹</div>
-            <h2 className="state-title">Task Over</h2>
-            <p className="state-sub">All entries received. No more submissions.</p>
-            <div className="state-stats">
-              <strong>{task.completed_count}</strong>
-              <span>/ {task.user_limit} submitted</span>
+        {/* ============ TASK OVER (only if user has NOT submitted) ============ */}
+        {!loadingTask&&number&&showTaskOver&&(
+          <div className="taskover-block">
+            <div className="taskover-glow"/>
+            <div className="taskover-icon">
+              <Icons.Stop/>
             </div>
-            <Link href="/" className="back-home-link">← Back to all tasks</Link>
+            <h2 className="taskover-title">Task Over</h2>
+            <p className="taskover-sub">All slots filled. No more submissions accepted for today.</p>
+            <div className="taskover-stats">
+              <div className="taskover-stat">
+                <div className="taskover-stat-num">{task?.completed_count||0}</div>
+                <div className="taskover-stat-label">Submitted</div>
+              </div>
+              <div className="taskover-stat-divider"/>
+              <div className="taskover-stat">
+                <div className="taskover-stat-num">{task?.user_limit||0}</div>
+                <div className="taskover-stat-label">Total Slots</div>
+              </div>
+            </div>
+            <Link href="/" className="taskover-btn">
+              <Icons.Home/>
+              <span>Back to all tasks</span>
+            </Link>
           </div>
         )}
 
-        {!loadingTask&&number&&hasTask&&task&&!task.is_over&&(<>
-          {/* Top bar with Home button */}
+        {/* ============ ACTIVE / SUBMITTED / FINAL / RESUBMIT ============ */}
+        {!loadingTask&&number&&showActive&&task&&(<>
           <div className="bot-top-bar">
             <Link href="/" className="bot-home-btn">
               <Icons.Home/>
@@ -384,7 +407,6 @@ function BotUI({botName}:{botName:string}){
             </Link>
           </div>
 
-          {/* Header bar with watch + amount */}
           <div className="bot-header-bar">
             <div className={`bot-header-watch ${task.watch_type==='full'?'watch-full':'watch-minutes'}`}>
               {task.watch_type==='full'?'▶ WATCH FULL VIDEO':`⏱ WATCH ${task.watch_minutes} MIN ONLY`}
@@ -395,7 +417,6 @@ function BotUI({botName}:{botName:string}){
             </div>
           </div>
 
-          {/* Live counter — always visible */}
           <div className="live-counter-strip">
             <div className="live-counter-head">
               <span className="live-dot-wrap"><span className="live-dot"/>LIVE</span>
@@ -428,7 +449,7 @@ function BotUI({botName}:{botName:string}){
                   </div>
                 </div>
               )}
-              {canResubmit&&(
+              {showResubmitAllowed&&(
                 <button className="btn-mistake" onClick={enterResubmitMode}>
                   <Icons.Alert/>
                   <span>Any mistake? Resubmit (1 time only)</span>
