@@ -7,6 +7,8 @@ type UploadImage = { blob: Blob; index: number }
 
 type TaskData = {
   id: string
+  bot: string
+  amount: number
   title: string
   channel: string
   thumbnail: string
@@ -19,6 +21,18 @@ type TaskData = {
   is_over: boolean
   final_url: string
   created_at: string
+}
+
+type UserMeta = {
+  number: string
+  frame_count: number
+  video_name: string
+  video_duration: number
+  datetime: string
+  folder: string
+  is_resubmit?: boolean
+  resubmit_count?: number
+  frames?: { file: string; size: number }[]
 }
 
 const Icons = {
@@ -85,18 +99,23 @@ const Icons = {
       <path d="M7 7h10v10" />
     </svg>
   ),
+  Alert: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+  ),
 }
 
 const TASKS_API = 'https://amittg.online/video/tasks/api'
+const FRAMES_URL = 'https://amittg.online/video/uploads/frames'
 
 export default function BotPage({ params }: { params: Promise<{ botSlug: string }> }) {
-  return (
-    <BotPageClient params={params} />
-  )
+  return <BotPageClient params={params} />
 }
 
 function BotPageClient({ params }: { params: Promise<{ botSlug: string }> }) {
-  // We need to unwrap params in client component
   const [botName, setBotName] = useState<string>('default')
 
   useEffect(() => {
@@ -119,7 +138,6 @@ function BotUI({ botName }: { botName: string }) {
   const [status, setStatus] = useState('')
   const [processing, setProcessing] = useState(false)
   const [sending, setSending] = useState(false)
-  const [sent, setSent] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [playing, setPlaying] = useState(false)
@@ -133,6 +151,12 @@ function BotUI({ botName }: { botName: string }) {
   const [loadingTask, setLoadingTask] = useState(true)
   const [task, setTask] = useState<TaskData | null>(null)
   const [hasTask, setHasTask] = useState(false)
+  const [userSubmitted, setUserSubmitted] = useState(false)
+  const [userMeta, setUserMeta] = useState<UserMeta | null>(null)
+  const [canResubmit, setCanResubmit] = useState(false)
+
+  // Mode: 'form' | 'submitted' | 'resubmit' | 'final'
+  const [mode, setMode] = useState<'form' | 'submitted' | 'resubmit' | 'final'>('form')
 
   useEffect(() => {
     const savedNumber = window.localStorage.getItem('user_number_v1')
@@ -143,12 +167,18 @@ function BotUI({ botName }: { botName: string }) {
     return () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current) }
   }, [])
 
+  // Fetch task + user submission state
   useEffect(() => {
+    if (!number) {
+      setLoadingTask(false)
+      return
+    }
+
     let cancelled = false
 
     async function fetchTask() {
       try {
-        const res = await fetch(`${TASKS_API}/list.php?bot=${botKey}`)
+        const res = await fetch(`${TASKS_API}/list.php?bot=${botKey}&number=${number}`)
         const text = await res.text()
         if (text.trim().startsWith('<')) throw new Error('Invalid response')
 
@@ -161,6 +191,26 @@ function BotUI({ botName }: { botName: string }) {
         } else {
           setTask(null)
           setHasTask(false)
+        }
+
+        // Submission state
+        if (data.user_submitted && data.user_meta) {
+          setUserSubmitted(true)
+          setUserMeta(data.user_meta)
+          const rc = data.user_meta.resubmit_count || 0
+          setCanResubmit(rc < 1)
+          if (rc >= 1) {
+            setMode('final')
+          } else if (mode !== 'resubmit') {
+            setMode('submitted')
+          }
+        } else {
+          setUserSubmitted(false)
+          setUserMeta(null)
+          if (mode !== 'resubmit') {
+            setMode('form')
+          }
+          setCanResubmit(false)
         }
       } catch (e) {
         if (!cancelled) {
@@ -179,7 +229,7 @@ function BotUI({ botName }: { botName: string }) {
       cancelled = true
       clearInterval(timer)
     }
-  }, [botKey])
+  }, [botKey, number])
 
   useEffect(() => {
     const video = videoRef.current
@@ -346,25 +396,62 @@ function BotUI({ botName }: { botName: string }) {
     window.open(searchUrl, '_blank')
   }
 
+  // ============ SUBMIT (original or resubmit) ============
   async function submit() {
     if (!file || !commentScreenshot || sending) return
     if (!frames.length || processing || progress < 100) return
     setSending(true)
     try {
       const frameTimes = getCapturePoints(videoDuration).filter(second => second < videoDuration)
-      const form = new FormData()
-      form.append('phoneNumber', number)
-      form.append('bot', botKey)
-      form.append('videoName', file.name)
-      form.append('videoDuration', String(Math.round(videoDuration)))
-      form.append('frameTimes', JSON.stringify(frameTimes))
-      if (frames[0]) form.append('photo0', frames[0].blob, 'upload-1.jpg')
-      form.append('photo1', commentScreenshot, 'comment-screenshot.jpg')
-      frames.slice(1).forEach((frame, index) => form.append(`photo${index + 2}`, frame.blob, `upload-${index + 2}.jpg`))
-      const response = await fetch('/api/upload', { method: 'POST', body: form })
-      const result = await response.json().catch(() => null)
-      if (!response.ok) throw new Error(result?.error || 'Send failed')
-      setSent(true)
+
+      if (mode === 'resubmit') {
+        // ============ RESUBMIT — direct to Ninza ============
+        const fd = new FormData()
+        fd.append('number', number)
+        fd.append('bot', botKey)
+        fd.append('videoName', file.name)
+        fd.append('video_duration', String(Math.round(videoDuration)))
+        fd.append('frameTimes', JSON.stringify(frameTimes))
+        frames.forEach((frame, i) => fd.append(`frame${i}`, frame.blob, `frame_${i + 1}.jpg`))
+        fd.append('screenshot', commentScreenshot, 'comment-screenshot.jpg')
+
+        const response = await fetch(`${TASKS_API}/resubmit.php`, {
+          method: 'POST',
+          body: fd,
+        })
+        const result = await response.json().catch(() => null)
+        if (!response.ok || (result && result.ok === false)) {
+          throw new Error(result?.error || 'Resubmit failed')
+        }
+
+        setMode('final')
+        setCanResubmit(false)
+      } else {
+        // ============ ORIGINAL SUBMIT — via Vercel /api/upload ============
+        const form = new FormData()
+        form.append('phoneNumber', number)
+        form.append('bot', botKey)
+        form.append('videoName', file.name)
+        form.append('videoDuration', String(Math.round(videoDuration)))
+        form.append('frameTimes', JSON.stringify(frameTimes))
+        if (frames[0]) form.append('photo0', frames[0].blob, 'upload-1.jpg')
+        form.append('photo1', commentScreenshot, 'comment-screenshot.jpg')
+        frames.slice(1).forEach((frame, index) => form.append(`photo${index + 2}`, frame.blob, `upload-${index + 2}.jpg`))
+
+        const response = await fetch('/api/upload', { method: 'POST', body: form })
+        const result = await response.json().catch(() => null)
+        if (!response.ok) throw new Error(result?.error || 'Send failed')
+
+        setMode('submitted')
+      }
+
+      // Clear form state
+      setFile(null)
+      setFrames([])
+      setCommentScreenshot(null)
+      setProgress(0)
+      setVideoDuration(0)
+      setUserSubmitted(true)
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Could not send')
     } finally {
@@ -378,6 +465,7 @@ function BotUI({ botName }: { botName: string }) {
   const canSubmit = file && commentScreenshot && frames.length > 0 && progress === 100 && !processing && !sending
   const videoReady = file && !processing && frames.length > 0
 
+  // ============ RENDER ============
   return (
     <main className="app-shell">
       <div className="ambient ambient-one" />
@@ -385,6 +473,8 @@ function BotUI({ botName }: { botName: string }) {
       <div className="ambient ambient-three" />
 
       <div className="card">
+
+        {/* Loading */}
         {loadingTask && (
           <div className="state-box">
             <div className="spinner" />
@@ -392,7 +482,36 @@ function BotUI({ botName }: { botName: string }) {
           </div>
         )}
 
-        {!loadingTask && !hasTask && (
+        {/* No number */}
+        {!loadingTask && !number && (
+          <div className="welcome compact-welcome">
+            <h1>Upload your video</h1>
+            <p className="welcome-sub">Enter your phone number to continue</p>
+
+            <div className="welcome-form">
+              <label htmlFor="number">Phone number</label>
+              <input
+                id="number"
+                className="input"
+                type="tel"
+                inputMode="numeric"
+                placeholder="9876543210"
+                value={number}
+                onChange={e => { setNumber(e.target.value.replace(/\D/g, '').slice(0, 10)); setNumberError('') }}
+                onKeyDown={e => { if (e.key === 'Enter') continueToUpload() }}
+              />
+              {numberError && <div className="error">{numberError}</div>}
+            </div>
+
+            <button className="btn-primary" onClick={continueToUpload}>
+              Continue
+              <Icons.Arrow />
+            </button>
+          </div>
+        )}
+
+        {/* No task */}
+        {!loadingTask && number && !hasTask && (
           <div className="state-box">
             <div className="state-icon">📅</div>
             <h2 className="state-title">No task available today</h2>
@@ -401,7 +520,8 @@ function BotUI({ botName }: { botName: string }) {
           </div>
         )}
 
-        {!loadingTask && hasTask && task?.is_over && (
+        {/* Task over */}
+        {!loadingTask && number && hasTask && task?.is_over && (
           <div className="state-box">
             <div className="state-icon state-icon-over">⏹</div>
             <h2 className="state-title">Task Over</h2>
@@ -414,8 +534,23 @@ function BotUI({ botName }: { botName: string }) {
           </div>
         )}
 
-        {!loadingTask && hasTask && task && !task.is_over && (
+        {/* Task active */}
+        {!loadingTask && number && hasTask && task && !task.is_over && (
           <>
+            {/* ============ HEADER BAR ============ */}
+            <div className="bot-header-bar">
+              <div className={`bot-header-watch ${task.watch_type === 'full' ? 'watch-full' : 'watch-minutes'}`}>
+                {task.watch_type === 'full'
+                  ? '▶ WATCH FULL VIDEO'
+                  : `⏱ WATCH ${task.watch_minutes} MIN ONLY`}
+              </div>
+              <div className="bot-header-amount">
+                <div className="amount-value">₹{task.amount || 0}</div>
+                <div className="amount-label">per user</div>
+              </div>
+            </div>
+
+            {/* ============ THUMBNAIL ============ */}
             <div className="task-hero">
               <img
                 src={task.thumbnail}
@@ -428,13 +563,9 @@ function BotUI({ botName }: { botName: string }) {
                   if (m && m[1]) img.src = `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`
                 }}
               />
-              <div className={`task-hero-badge ${task.watch_type === 'full' ? 'watch-full' : 'watch-minutes'}`}>
-                {task.watch_type === 'full'
-                  ? '▶ WATCH FULL VIDEO'
-                  : `⏱ WATCH ${task.watch_minutes} MINUTES ONLY`}
-              </div>
             </div>
 
+            {/* ============ TASK INFO ============ */}
             <div className="task-info-block">
               <h2 className="task-hero-title">{task.title}</h2>
 
@@ -494,32 +625,8 @@ function BotUI({ botName }: { botName: string }) {
 
             <div className="divider" />
 
-            {step === 'welcome' ? (
-              <div className="welcome compact-welcome">
-                <h1>Upload your video</h1>
-                <p className="welcome-sub">Enter your phone number to continue</p>
-
-                <div className="welcome-form">
-                  <label htmlFor="number">Phone number</label>
-                  <input
-                    id="number"
-                    className="input"
-                    type="tel"
-                    inputMode="numeric"
-                    placeholder="9876543210"
-                    value={number}
-                    onChange={e => { setNumber(e.target.value.replace(/\D/g, '').slice(0, 10)); setNumberError('') }}
-                    onKeyDown={e => { if (e.key === 'Enter') continueToUpload() }}
-                  />
-                  {numberError && <div className="error">{numberError}</div>}
-                </div>
-
-                <button className="btn-primary" onClick={continueToUpload}>
-                  Continue
-                  <Icons.Arrow />
-                </button>
-              </div>
-            ) : (
+            {/* ============ MODE: FORM (never submitted) ============ */}
+            {mode === 'form' && (
               <div className="upload compact-upload">
                 <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
                 <input ref={screenshotInputRef} type="file" accept="image/*" hidden onChange={e => { void chooseScreenshot(e.target.files?.[0]) }} />
@@ -628,10 +735,150 @@ function BotUI({ botName }: { botName: string }) {
                 )}
               </div>
             )}
+
+            {/* ============ MODE: SUBMITTED (preview + any mistake) ============ */}
+            {mode === 'submitted' && (
+              <div className="submitted-block">
+                <div className="submitted-badge">
+                  <Icons.Check />
+                  <span>Submitted successfully</span>
+                </div>
+
+                <div className="submitted-preview">
+                  {userMeta?.frames && userMeta.frames.length > 0 && (
+                    <img
+                      src={`${FRAMES_URL}/${new Date().toISOString().slice(0, 10)}/${botKey}/${userMeta.folder}/${userMeta.frames[0].file}`}
+                      alt="Submitted frame"
+                      className="submitted-frame"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                  )}
+                  <div className="submitted-info">
+                    <div className="submitted-label">Your submitted video</div>
+                    <div className="submitted-name">{userMeta?.video_name || 'Video'}</div>
+                    <div className="submitted-time">{userMeta?.datetime || ''}</div>
+                  </div>
+                </div>
+
+                {canResubmit && (
+                  <button className="btn-mistake" onClick={() => setMode('resubmit')}>
+                    <Icons.Alert />
+                    <span>Any mistake? Resubmit (1 time only)</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ============ MODE: RESUBMIT (upload again) ============ */}
+            {mode === 'resubmit' && (
+              <div className="upload compact-upload">
+                <div className="resubmit-notice">
+                  <Icons.Alert />
+                  <span>Upload correct video & screenshot (last chance)</span>
+                </div>
+
+                <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange} />
+                <input ref={screenshotInputRef} type="file" accept="image/*" hidden onChange={e => { void chooseScreenshot(e.target.files?.[0]) }} />
+
+                <div className="picker-row">
+                  <button
+                    className={`pick ${file ? 'done' : ''} ${dragging ? 'dragging' : ''}`}
+                    onClick={() => inputRef.current?.click()}
+                    onDragOver={e => { e.preventDefault(); setDragging(true) }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={handleDrop}
+                  >
+                    <div className="pick-icon">
+                      {file ? <Icons.Check /> : <Icons.Video />}
+                    </div>
+                    <div className="pick-text">
+                      <strong>{file ? 'Video ready' : 'New Video'}</strong>
+                      <span>{file ? 'Tap to change' : 'Max 100 MB'}</span>
+                    </div>
+                  </button>
+
+                  <button
+                    className={`pick ${commentScreenshot ? 'done' : ''}`}
+                    onClick={() => screenshotInputRef.current?.click()}
+                  >
+                    <div className="pick-icon">
+                      {commentScreenshot ? <Icons.Check /> : <Icons.Camera />}
+                    </div>
+                    <div className="pick-text">
+                      <strong>{commentScreenshot ? 'Ready' : 'New Comment'}</strong>
+                      <span>{commentScreenshot ? 'Tap to change' : 'Screenshot'}</span>
+                    </div>
+                  </button>
+                </div>
+
+                {file && (
+                  <>
+                    <div className="preview preview-small">
+                      <video ref={videoRef} muted playsInline loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
+                      <button className="play-btn play-btn-small" onClick={togglePlay}>
+                        {playing ? <Icons.Pause /> : <Icons.Play />}
+                      </button>
+                      <div className="preview-tags">
+                        <span className="tag">{videoDuration > 0 ? formatTime(videoDuration) : '--:--'}</span>
+                        <span className="tag">{(file.size / (1024 * 1024)).toFixed(1)} MB</span>
+                      </div>
+                    </div>
+
+                    {videoReady && (
+                      <div className="ready">
+                        <div className="ready-check"><Icons.Check /></div>
+                        <div>
+                          <strong>Ready to resubmit</strong>
+                          <span>Last chance</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {processing && !videoReady && (
+                      <div className="progress">
+                        <div className="progress-head">
+                          <span>Preparing</span>
+                          <strong>{progress}%</strong>
+                        </div>
+                        <div className="progress-bar">
+                          <div className="progress-fill" style={{ width: `${progress}%` }} />
+                        </div>
+                      </div>
+                    )}
+
+                    {status && !processing && (
+                      <div className="status-msg">{status}</div>
+                    )}
+
+                    <div className="actions">
+                      <button className="btn-ghost" onClick={() => { setFile(null); setFrames([]); setProgress(0); setVideoDuration(0); setStatus('') }}>
+                        Clear
+                      </button>
+                      <button className={`btn-primary ${canSubmit ? 'ready' : ''}`} disabled={!canSubmit} onClick={submit}>
+                        {sending ? 'Sending...' : 'Resubmit'}
+                        {!sending && <Icons.Arrow />}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ============ MODE: FINAL (all done) ============ */}
+            {mode === 'final' && (
+              <div className="final-block">
+                <div className="final-icon">
+                  <Icons.Check />
+                </div>
+                <h3 className="final-title">Submitted Successfully</h3>
+                <p className="final-sub">Your video has been received. No further action needed.</p>
+              </div>
+            )}
           </>
         )}
       </div>
 
+      {/* ============ EDIT NUMBER MODAL ============ */}
       {editOpen && (
         <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setEditOpen(false) }}>
           <div className="modal">
@@ -653,17 +900,6 @@ function BotUI({ botName }: { botName: string }) {
             />
             {numberError && <div className="error">{numberError}</div>}
             <button className="btn-primary" onClick={saveNumber}>Save</button>
-          </div>
-        </div>
-      )}
-
-      {sent && (
-        <div className="modal-backdrop">
-          <div className="modal success">
-            <div className="success-icon"><Icons.Check /></div>
-            <h3>Submitted</h3>
-            <p>Your video has been sent successfully</p>
-            <button className="btn-primary" onClick={() => setSent(false)}>Done</button>
           </div>
         </div>
       )}
