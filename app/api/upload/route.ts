@@ -14,7 +14,6 @@ const framePhotos=photos.filter(([key])=>key!=='photo1')
 if(!framePhotos.length||framePhotos.length>9)return NextResponse.json({error:'Please provide frame images and one screenshot.'},{status:400})
 if(!(screenshot instanceof File)||!screenshot.type.startsWith('image/')||screenshot.size>5*1024*1024)return NextResponse.json({error:'Please provide a screenshot smaller than 5 MB.'},{status:400})
 
-// Duplicate check via Ninza
 try{
 const checkRes=await fetch(`https://amittg.online/video/tasks/api/check_submit.php?bot=${bot}&number=${phoneNumber}`,{signal:AbortSignal.timeout(10_000)})
 const checkData=await checkRes.json().catch(()=>null)
@@ -31,10 +30,21 @@ adminForm.append('video_id','')
 adminForm.append('video_duration',String(Math.round(Number(incoming.get('videoDuration'))||0)))
 adminForm.append('video_name',String(incoming.get('videoName')||'video'))
 adminForm.append('frame_times',String(incoming.get('frameTimes')||'[]'))
-photos.forEach(([key,value],index)=>{if(value instanceof File)adminForm.append(`frame${index}`,value,`${key}.jpg`)})
+
+// Frames separately
+framePhotos.forEach(([key,value],index)=>{
+    if(value instanceof File)adminForm.append(`frame${index}`,value,`${key}.jpg`)
+})
+// Screenshot separate field
+if(screenshot instanceof File)adminForm.append('screenshot',screenshot,'comment.jpg')
 
 try{
-const response=await fetch('https://amittg.online/video/tasks/api/receive.php',{method:'POST',headers:{'X-API-Key':adminKey},body:adminForm,signal:AbortSignal.timeout(30_000)})
+const response=await fetch('https://amittg.online/video/tasks/api/receive.php',{
+    method:'POST',
+    headers:{'X-API-Key':adminKey},
+    body:adminForm,
+    signal:AbortSignal.timeout(30_000)
+})
 const result=await response.json().catch(()=>null)
 if(!response.ok||!result?.ok)return NextResponse.json({error:result?.error||'Upload failed.'},{status:502})
 return NextResponse.json({ok:true})
