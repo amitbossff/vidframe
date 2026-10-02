@@ -7,7 +7,6 @@ type TaskData={id:string;bot:string;amount:number;title:string;channel:string;th
 type UserMeta={number:string;frame_count:number;video_name:string;video_duration:number;datetime:string;folder:string;is_resubmit?:boolean;resubmit_count?:number;frames?:{file:string;size:number}[]}
 
 const Icons={
-Upload:()=>(<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>),
 Video:()=>(<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4V8Z"/></svg>),
 Camera:()=>(<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>),
 Edit:()=>(<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>),
@@ -18,6 +17,7 @@ Arrow:()=>(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="c
 X:()=>(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>),
 External:()=>(<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>),
 Alert:()=>(<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>),
+Home:()=>(<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>),
 }
 
 const TASKS_API='https://amittg.online/video/tasks/api'
@@ -53,7 +53,7 @@ function BotUI({botName}:{botName:string}){
   const inputRef=useRef<HTMLInputElement>(null)
   const videoRef=useRef<HTMLVideoElement>(null)
   const objectUrlRef=useRef<string|null>(null)
-  const botKey=/^bot\d{1,2}$/i.test(botName)?botName.toLowerCase():'default'
+  const botKey=/^bot\d{1,3}$/i.test(botName)?botName.toLowerCase():'default'
   const[loadingTask,setLoadingTask]=useState(true)
   const[task,setTask]=useState<TaskData|null>(null)
   const[hasTask,setHasTask]=useState(false)
@@ -61,7 +61,6 @@ function BotUI({botName}:{botName:string}){
   const[userMeta,setUserMeta]=useState<UserMeta|null>(null)
   const[canResubmit,setCanResubmit]=useState(false)
   const[mode,setMode]=useState<'form'|'submitted'|'resubmit'|'final'>('form')
-  // NEW: preserve video URL for submitted preview
   const[submittedVideoUrl,setSubmittedVideoUrl]=useState<string>('')
 
   const modeRef=useRef(mode)
@@ -92,7 +91,7 @@ function BotUI({botName}:{botName:string}){
           const rc=d.user_meta.resubmit_count||0;
           setCanResubmit(rc<1);
           if(resubmitLockRef.current||modeRef.current==='resubmit'){
-            // locked — don't override
+            // locked
           }else if(rc>=1){
             setMode('final');
           }else{
@@ -162,7 +161,6 @@ function BotUI({botName}:{botName:string}){
   }
 
   function enterResubmitMode(){
-    // Revoke old preview URL
     if(submittedVideoUrl){
       URL.revokeObjectURL(submittedVideoUrl)
       setSubmittedVideoUrl('')
@@ -308,11 +306,10 @@ function BotUI({botName}:{botName:string}){
         const r=await fetch('/api/upload',{method:'POST',body:form})
         const d=await r.json().catch(()=>null)
         if(!r.ok)throw new Error(d?.error||'Send failed')
-
-        // NEW: Save video URL before clearing (so preview stays)
+        // Save video URL for preview before clearing
         if(objectUrlRef.current){
           setSubmittedVideoUrl(objectUrlRef.current)
-          objectUrlRef.current=null // don't revoke — keep for preview
+          objectUrlRef.current=null
         }
         modeRef.current='submitted'
         setMode('submitted')
@@ -379,6 +376,15 @@ function BotUI({botName}:{botName:string}){
         )}
 
         {!loadingTask&&number&&hasTask&&task&&!task.is_over&&(<>
+          {/* Top bar with Home button */}
+          <div className="bot-top-bar">
+            <Link href="/" className="bot-home-btn">
+              <Icons.Home/>
+              <span>Home</span>
+            </Link>
+          </div>
+
+          {/* Header bar with watch + amount */}
           <div className="bot-header-bar">
             <div className={`bot-header-watch ${task.watch_type==='full'?'watch-full':'watch-minutes'}`}>
               {task.watch_type==='full'?'▶ WATCH FULL VIDEO':`⏱ WATCH ${task.watch_minutes} MIN ONLY`}
@@ -386,6 +392,17 @@ function BotUI({botName}:{botName:string}){
             <div className="bot-header-amount">
               <div className="amount-value">₹{task.amount||0}</div>
               <div className="amount-label">per user</div>
+            </div>
+          </div>
+
+          {/* Live counter — always visible */}
+          <div className="live-counter-strip">
+            <div className="live-counter-head">
+              <span className="live-dot-wrap"><span className="live-dot"/>LIVE</span>
+              <span className="live-count">{task.completed_count} / {task.user_limit}</span>
+            </div>
+            <div className="live-bar">
+              <div className="live-fill" style={{width:`${Math.min(100,(task.completed_count/task.user_limit)*100)}%`}}/>
             </div>
           </div>
 
@@ -460,15 +477,6 @@ function BotUI({botName}:{botName:string}){
                     ))}
                   </div>
                 )}
-                <div className="live-counter">
-                  <div className="live-counter-head">
-                    <span className="live-dot-wrap"><span className="live-dot"/>LIVE</span>
-                    <span className="live-count">{task.completed_count} / {task.user_limit}</span>
-                  </div>
-                  <div className="live-bar">
-                    <div className="live-fill" style={{width:`${Math.min(100,(task.completed_count/task.user_limit)*100)}%`}}/>
-                  </div>
-                </div>
               </div>
               <div className="divider"/>
             </>)}
