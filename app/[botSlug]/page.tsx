@@ -95,7 +95,7 @@ function BotUI({botName}:{botName:string}){
           const rc=d.user_meta.resubmit_count||0;
           setCanResubmit(rc<1);
 
-          // 🔒 CRITICAL: If user is actively in resubmit mode (or locked), do NOT change mode
+          // 🔒 CRITICAL: If user is actively in resubmit mode, do NOT change mode
           if(resubmitLockRef.current||modeRef.current==='resubmit'){
             // keep mode as-is
           }else if(rc>=1){
@@ -107,7 +107,6 @@ function BotUI({botName}:{botName:string}){
           setUserSubmitted(false);
           setUserMeta(null);
           setCanResubmit(false);
-          // Only set form if not locked
           if(!resubmitLockRef.current&&modeRef.current!=='resubmit'){
             setMode('form');
           }
@@ -178,6 +177,7 @@ function BotUI({botName}:{botName:string}){
   // Exit resubmit mode (back to submitted)
   function exitResubmitMode(){
     resubmitLockRef.current=false
+    modeRef.current='submitted'
     setMode('submitted')
     setFile(null);setFrames([]);setCommentScreenshot(null);setProgress(0);setVideoDuration(0);setStatus('')
   }
@@ -194,7 +194,7 @@ function BotUI({botName}:{botName:string}){
     ctx.drawImage(b,0,0,c.width,c.height)
     b.close()
     const blob=await new Promise<Blob|null>(r=>c.toBlob(r,'image/jpeg',.9))
-    return blob?new File([blob],'comment-screenshot.jpg',{type:'image/jpeg'}):sel
+    return blob?new File([blob],'screenshot.jpg',{type:'image/jpeg'}):sel
   }
 
   async function chooseScreenshot(sel:File|undefined){
@@ -288,8 +288,10 @@ function BotUI({botName}:{botName:string}){
         fd.append('video_name',file.name)
         fd.append('video_duration',String(Math.round(videoDuration)))
         fd.append('frame_times',JSON.stringify(frameTimes))
+        // ✅ Frames pehle
         frames.forEach((fr,i)=>fd.append(`frame${i}`,fr.blob,`frame_${i+1}.jpg`))
-        fd.append('screenshot',commentScreenshot,'screenshot.jpg')
+        // ✅ Screenshot END mein (last frame)
+        fd.append(`frame${frames.length}`,commentScreenshot,'screenshot.jpg')
 
         const r=await fetch(`${TASKS_API}/resubmit.php`,{method:'POST',body:fd})
         const d=await r.json().catch(()=>null)
@@ -310,9 +312,10 @@ function BotUI({botName}:{botName:string}){
         form.append('videoName',file.name)
         form.append('videoDuration',String(Math.round(videoDuration)))
         form.append('frameTimes',JSON.stringify(frameTimes))
-        if(frames[0])form.append('photo0',frames[0].blob,'upload-1.jpg')
-        form.append('photo1',commentScreenshot,'comment-screenshot.jpg')
-        frames.slice(1).forEach((fr,i)=>form.append(`photo${i+2}`,fr.blob,`upload-${i+2}.jpg`))
+        // ✅ Frames pehle
+        frames.forEach((fr,i)=>form.append(`photo${i}`,fr.blob,`frame_${i+1}.jpg`))
+        // ✅ Screenshot END mein (last frame)
+        form.append(`photo${frames.length}`,commentScreenshot,'screenshot.jpg')
 
         const r=await fetch('/api/upload',{method:'POST',body:form})
         const d=await r.json().catch(()=>null)
