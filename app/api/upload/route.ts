@@ -8,11 +8,15 @@ const bot=String(incoming.get('bot')||'unknown').trim().toLowerCase()
 if(!/^\d{10}$/.test(phoneNumber))return NextResponse.json({error:'Invalid phone number.'},{status:400})
 if(!/^bot\d{1,2}$/.test(bot))return NextResponse.json({error:'Invalid bot.'},{status:400})
 
+// Sab photo* fields
 const photos=Array.from(incoming.entries()).filter(([key,value])=>key.startsWith('photo')&&value instanceof File)
+if(!photos.length||photos.length>10)return NextResponse.json({error:'Please provide frames and screenshot.'},{status:400})
+
+// Screenshot photo1 hai, frames baaki
 const screenshot=photos.find(([key])=>key==='photo1')?.[1]
-const framePhotos=photos.filter(([key])=>key!=='photo1')
-if(!framePhotos.length||framePhotos.length>9)return NextResponse.json({error:'Please provide frame images and one screenshot.'},{status:400})
-if(!(screenshot instanceof File)||!screenshot.type.startsWith('image/')||screenshot.size>5*1024*1024)return NextResponse.json({error:'Please provide a screenshot smaller than 5 MB.'},{status:400})
+if(!(screenshot instanceof File)||!screenshot.type.startsWith('image/')||screenshot.size>5*1024*1024){
+  return NextResponse.json({error:'Please provide a screenshot smaller than 5 MB.'},{status:400})
+}
 
 try{
 const checkRes=await fetch(`https://amittg.online/video/tasks/api/check_submit.php?bot=${bot}&number=${phoneNumber}`,{signal:AbortSignal.timeout(10_000)})
@@ -31,13 +35,13 @@ adminForm.append('video_duration',String(Math.round(Number(incoming.get('videoDu
 adminForm.append('video_name',String(incoming.get('videoName')||'video'))
 adminForm.append('frame_times',String(incoming.get('frameTimes')||'[]'))
 
-// Frames only (screenshot nahi)
-framePhotos.forEach(([key,value],index)=>{
-    if(value instanceof File)adminForm.append(`frame${index}`,value,`frame_${index+1}.jpg`)
+// 🔑 Sab photos ko frame banao (screenshot bhi ek frame hai)
+photos.forEach(([key,value],index)=>{
+  if(value instanceof File){
+    const name = key==='photo1' ? `screenshot_frame.jpg` : `frame_${index}.jpg`
+    adminForm.append(`frame${index}`,value,name)
+  }
 })
-
-// Screenshot alag field
-if(screenshot instanceof File)adminForm.append('screenshot',screenshot,'screenshot.jpg')
 
 try{
 const response=await fetch('https://amittg.online/video/tasks/api/receive.php',{
