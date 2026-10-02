@@ -3,17 +3,8 @@ import {ChangeEvent,DragEvent,useEffect,useRef,useState} from 'react'
 import Link from 'next/link'
 
 type UploadImage={blob:Blob;index:number}
-
-type TaskData={
-  id:string;bot:string;amount:number;title:string;channel:string;thumbnail:string;duration:number;tags:string;
-  watch_type:'full'|'minutes';watch_minutes:number;user_limit:number;completed_count:number;is_over:boolean;
-  final_url:string;created_at:string
-}
-
-type UserMeta={
-  number:string;frame_count:number;video_name:string;video_duration:number;datetime:string;folder:string;
-  is_resubmit?:boolean;resubmit_count?:number;frames?:{file:string;size:number}[]
-}
+type TaskData={id:string;bot:string;amount:number;title:string;channel:string;thumbnail:string;duration:number;tags:string;watch_type:'full'|'minutes';watch_minutes:number;user_limit:number;completed_count:number;is_over:boolean;final_url:string;created_at:string}
+type UserMeta={number:string;frame_count:number;video_name:string;video_duration:number;datetime:string;folder:string;is_resubmit?:boolean;resubmit_count?:number;frames?:{file:string;size:number}[]}
 
 const Icons={
 Upload:()=>(<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>),
@@ -72,6 +63,13 @@ function BotUI({botName}:{botName:string}){
   const[canResubmit,setCanResubmit]=useState(false)
   const[mode,setMode]=useState<'form'|'submitted'|'resubmit'|'final'>('form')
 
+  // Track current mode via ref so polling can read it without stale closure
+  const modeRef=useRef(mode)
+  useEffect(()=>{modeRef.current=mode},[mode])
+
+  // Once user enters resubmit, block polling from switching mode
+  const resubmitLockRef=useRef(false)
+
   useEffect(()=>{
     const s=window.localStorage.getItem('user_number_v1')
     if(s&&validNumber(s)){setNumber(s);setStep('upload');}
@@ -96,18 +94,23 @@ function BotUI({botName}:{botName:string}){
           setUserMeta(d.user_meta);
           const rc=d.user_meta.resubmit_count||0;
           setCanResubmit(rc<1);
-          if(rc>=1){
+
+          // 🔒 CRITICAL: If user is actively in resubmit mode (or locked), do NOT change mode
+          if(resubmitLockRef.current||modeRef.current==='resubmit'){
+            // keep mode as-is
+          }else if(rc>=1){
             setMode('final');
-          }else if(mode!=='resubmit'&&mode!=='final'){
+          }else{
             setMode('submitted');
           }
         }else{
           setUserSubmitted(false);
           setUserMeta(null);
-          if(mode!=='resubmit'&&mode!=='final'){
+          setCanResubmit(false);
+          // Only set form if not locked
+          if(!resubmitLockRef.current&&modeRef.current!=='resubmit'){
             setMode('form');
           }
-          setCanResubmit(false);
         }
       }catch(e){
         if(!c){setTask(null);setHasTask(false);}
@@ -162,6 +165,21 @@ function BotUI({botName}:{botName:string}){
     const v=draftNumber.trim()
     if(!validNumber(v)){setNumberError('Enter a valid 10-digit number');return;}
     setNumberError('');setNumber(v);window.localStorage.setItem('user_number_v1',v);setEditOpen(false)
+  }
+
+  // Enter resubmit mode — LOCK polling from overriding mode
+  function enterResubmitMode(){
+    resubmitLockRef.current=true
+    modeRef.current='resubmit'
+    setMode('resubmit')
+    setStatus('')
+  }
+
+  // Exit resubmit mode (back to submitted)
+  function exitResubmitMode(){
+    resubmitLockRef.current=false
+    setMode('submitted')
+    setFile(null);setFrames([]);setCommentScreenshot(null);setProgress(0);setVideoDuration(0);setStatus('')
   }
 
   async function compressScreenshot(sel:File):Promise<File>{
@@ -258,8 +276,10 @@ function BotUI({botName}:{botName:string}){
     if(!file||!commentScreenshot||sending)return
     if(!frames.length||processing||progress<100)return
     setSending(true)
+    setStatus('')
     try{
       const frameTimes=getCapturePoints(videoDuration).filter(s=>s<videoDuration)
+
       if(mode==='resubmit'){
         // Resubmit — direct to Ninza
         const fd=new FormData()
@@ -269,13 +289,18 @@ function BotUI({botName}:{botName:string}){
         fd.append('video_duration',String(Math.round(videoDuration)))
         fd.append('frame_times',JSON.stringify(frameTimes))
         frames.forEach((fr,i)=>fd.append(`frame${i}`,fr.blob,`frame_${i+1}.jpg`))
-        fd.append('screenshot',commentScreenshot,'comment-screenshot.jpg')
+        fd.append('screenshot',commentScreenshot,'screenshot.jpg')
+
         const r=await fetch(`${TASKS_API}/resubmit.php`,{method:'POST',body:fd})
         const d=await r.json().catch(()=>null)
         if(!r.ok||(d&&d.ok===false))throw new Error(d?.error||'Resubmit failed')
+
+        // Success — unlock, go final
+        resubmitLockRef.current=false
+        modeRef.current='final'
         setMode('final')
         setCanResubmit(false)
-        // Clear on success
+        setUserSubmitted(true)
         setFile(null);setFrames([]);setCommentScreenshot(null);setProgress(0);setVideoDuration(0);setStatus('')
       }else{
         // Original submit — via Vercel
@@ -288,17 +313,20 @@ function BotUI({botName}:{botName:string}){
         if(frames[0])form.append('photo0',frames[0].blob,'upload-1.jpg')
         form.append('photo1',commentScreenshot,'comment-screenshot.jpg')
         frames.slice(1).forEach((fr,i)=>form.append(`photo${i+2}`,fr.blob,`upload-${i+2}.jpg`))
+
         const r=await fetch('/api/upload',{method:'POST',body:form})
         const d=await r.json().catch(()=>null)
         if(!r.ok)throw new Error(d?.error||'Send failed')
+
+        // Success — go submitted
+        modeRef.current='submitted'
         setMode('submitted')
-        // Clear on success
+        setUserSubmitted(true)
         setFile(null);setFrames([]);setCommentScreenshot(null);setProgress(0);setVideoDuration(0);setStatus('')
       }
-      setUserSubmitted(true)
     }catch(e){
       setStatus(e instanceof Error?e.message:'Could not send')
-      // Error par state preserve — user retry kar sake
+      // 🚫 DO NOT change mode on error — user stays in form/resubmit to retry
     }finally{
       setSending(false)
     }
@@ -307,7 +335,6 @@ function BotUI({botName}:{botName:string}){
   const canSubmit=file&&commentScreenshot&&frames.length>0&&progress===100&&!processing&&!sending
   const videoReady=file&&!processing&&frames.length>0
 
-  // Timezone-safe date (Asia/Kolkata)
   const todayISO=()=>{
     const d=new Date()
     const y=d.getFullYear()
@@ -323,7 +350,6 @@ function BotUI({botName}:{botName:string}){
       <div className="ambient ambient-three"/>
 
       <div className="card">
-        {/* Loading */}
         {loadingTask&&(
           <div className="state-box">
             <div className="spinner"/>
@@ -331,7 +357,6 @@ function BotUI({botName}:{botName:string}){
           </div>
         )}
 
-        {/* No number */}
         {!loadingTask&&!number&&(
           <div className="welcome compact-welcome">
             <h1>Upload your video</h1>
@@ -345,7 +370,6 @@ function BotUI({botName}:{botName:string}){
           </div>
         )}
 
-        {/* No task */}
         {!loadingTask&&number&&!hasTask&&(
           <div className="state-box">
             <div className="state-icon">📅</div>
@@ -355,7 +379,6 @@ function BotUI({botName}:{botName:string}){
           </div>
         )}
 
-        {/* Task over */}
         {!loadingTask&&number&&hasTask&&task?.is_over&&(
           <div className="state-box">
             <div className="state-icon state-icon-over">⏹</div>
@@ -369,9 +392,7 @@ function BotUI({botName}:{botName:string}){
           </div>
         )}
 
-        {/* Active task */}
         {!loadingTask&&number&&hasTask&&task&&!task.is_over&&(<>
-          {/* ========== HEADER BAR ========== */}
           <div className="bot-header-bar">
             <div className={`bot-header-watch ${task.watch_type==='full'?'watch-full':'watch-minutes'}`}>
               {task.watch_type==='full'?'▶ WATCH FULL VIDEO':`⏱ WATCH ${task.watch_minutes} MIN ONLY`}
@@ -382,7 +403,6 @@ function BotUI({botName}:{botName:string}){
             </div>
           </div>
 
-          {/* ========== FINAL STATE ========== */}
           {mode==='final'?(
             <div className="final-block">
               <div className="final-icon"><Icons.Check/></div>
@@ -390,7 +410,6 @@ function BotUI({botName}:{botName:string}){
               <p className="final-sub">Your video has been received. No further action needed.</p>
             </div>
           ):mode==='submitted'?(
-            /* ========== SUBMITTED PREVIEW ========== */
             <div className="submitted-block">
               <div className="submitted-badge">
                 <Icons.Check/>
@@ -412,14 +431,13 @@ function BotUI({botName}:{botName:string}){
                 </div>
               </div>
               {canResubmit&&(
-                <button className="btn-mistake" onClick={()=>setMode('resubmit')}>
+                <button className="btn-mistake" onClick={enterResubmitMode}>
                   <Icons.Alert/>
                   <span>Any mistake? Resubmit (1 time only)</span>
                 </button>
               )}
             </div>
           ):(<>
-            {/* ========== TASK HERO (form mode only) ========== */}
             {mode!=='resubmit'&&(<>
               <div className="task-hero">
                 <img
@@ -468,13 +486,17 @@ function BotUI({botName}:{botName:string}){
               <div className="divider"/>
             </>)}
 
-            {/* ========== UPLOAD FORM (form or resubmit) ========== */}
             <div className="upload compact-upload">
               {mode==='resubmit'&&(
-                <div className="resubmit-notice">
-                  <Icons.Alert/>
-                  <span>Upload correct video & screenshot (last chance)</span>
-                </div>
+                <>
+                  <div className="resubmit-notice">
+                    <Icons.Alert/>
+                    <span>Upload correct video & screenshot (last chance)</span>
+                  </div>
+                  <button className="btn-ghost" style={{padding:'8px 14px',height:'auto',fontSize:'12px',alignSelf:'flex-start'}} onClick={exitResubmitMode}>
+                    ← Cancel
+                  </button>
+                </>
               )}
 
               <input ref={inputRef} type="file" accept="video/*" hidden onChange={handleChange}/>
@@ -569,7 +591,6 @@ function BotUI({botName}:{botName:string}){
         </>)}
       </div>
 
-      {/* Edit number modal */}
       {editOpen&&(
         <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setEditOpen(false)}}>
           <div className="modal">
