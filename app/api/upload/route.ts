@@ -31,12 +31,13 @@ adminForm.append('video_duration',String(Math.round(Number(incoming.get('videoDu
 adminForm.append('video_name',String(incoming.get('videoName')||'video'))
 adminForm.append('frame_times',String(incoming.get('frameTimes')||'[]'))
 
-// Frames separately
+// Frames only (screenshot nahi)
 framePhotos.forEach(([key,value],index)=>{
-    if(value instanceof File)adminForm.append(`frame${index}`,value,`${key}.jpg`)
+    if(value instanceof File)adminForm.append(`frame${index}`,value,`frame_${index+1}.jpg`)
 })
-// Screenshot separate field
-if(screenshot instanceof File)adminForm.append('screenshot',screenshot,'comment.jpg')
+
+// Screenshot alag field
+if(screenshot instanceof File)adminForm.append('screenshot',screenshot,'screenshot.jpg')
 
 try{
 const response=await fetch('https://amittg.online/video/tasks/api/receive.php',{
