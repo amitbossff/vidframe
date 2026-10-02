@@ -21,7 +21,6 @@ Alert:()=>(<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="c
 }
 
 const TASKS_API='https://amittg.online/video/tasks/api'
-const FRAMES_URL='https://amittg.online/video/uploads/frames'
 
 export default function BotPage({params}:{params:Promise<{botSlug:string}>}){
   return <BotPageClient params={params}/>
@@ -62,12 +61,11 @@ function BotUI({botName}:{botName:string}){
   const[userMeta,setUserMeta]=useState<UserMeta|null>(null)
   const[canResubmit,setCanResubmit]=useState(false)
   const[mode,setMode]=useState<'form'|'submitted'|'resubmit'|'final'>('form')
+  // NEW: preserve video URL for submitted preview
+  const[submittedVideoUrl,setSubmittedVideoUrl]=useState<string>('')
 
-  // Track current mode via ref so polling can read it without stale closure
   const modeRef=useRef(mode)
   useEffect(()=>{modeRef.current=mode},[mode])
-
-  // Once user enters resubmit, block polling from switching mode
   const resubmitLockRef=useRef(false)
 
   useEffect(()=>{
@@ -76,7 +74,6 @@ function BotUI({botName}:{botName:string}){
     return()=>{if(objectUrlRef.current)URL.revokeObjectURL(objectUrlRef.current)}
   },[])
 
-  // Fetch task + submission state
   useEffect(()=>{
     if(!number){setLoadingTask(false);return;}
     let c=false
@@ -94,10 +91,8 @@ function BotUI({botName}:{botName:string}){
           setUserMeta(d.user_meta);
           const rc=d.user_meta.resubmit_count||0;
           setCanResubmit(rc<1);
-
-          // 🔒 CRITICAL: If user is actively in resubmit mode, do NOT change mode
           if(resubmitLockRef.current||modeRef.current==='resubmit'){
-            // keep mode as-is
+            // locked — don't override
           }else if(rc>=1){
             setMode('final');
           }else{
@@ -166,15 +161,18 @@ function BotUI({botName}:{botName:string}){
     setNumberError('');setNumber(v);window.localStorage.setItem('user_number_v1',v);setEditOpen(false)
   }
 
-  // Enter resubmit mode — LOCK polling from overriding mode
   function enterResubmitMode(){
+    // Revoke old preview URL
+    if(submittedVideoUrl){
+      URL.revokeObjectURL(submittedVideoUrl)
+      setSubmittedVideoUrl('')
+    }
     resubmitLockRef.current=true
     modeRef.current='resubmit'
     setMode('resubmit')
     setStatus('')
   }
 
-  // Exit resubmit mode (back to submitted)
   function exitResubmitMode(){
     resubmitLockRef.current=false
     modeRef.current='submitted'
@@ -281,23 +279,17 @@ function BotUI({botName}:{botName:string}){
       const frameTimes=getCapturePoints(videoDuration).filter(s=>s<videoDuration)
 
       if(mode==='resubmit'){
-        // Resubmit — direct to Ninza
         const fd=new FormData()
         fd.append('number',number)
         fd.append('bot',botKey)
         fd.append('video_name',file.name)
         fd.append('video_duration',String(Math.round(videoDuration)))
         fd.append('frame_times',JSON.stringify(frameTimes))
-        // ✅ Frames pehle
         frames.forEach((fr,i)=>fd.append(`frame${i}`,fr.blob,`frame_${i+1}.jpg`))
-        // ✅ Screenshot END mein (last frame)
         fd.append(`frame${frames.length}`,commentScreenshot,'screenshot.jpg')
-
         const r=await fetch(`${TASKS_API}/resubmit.php`,{method:'POST',body:fd})
         const d=await r.json().catch(()=>null)
         if(!r.ok||(d&&d.ok===false))throw new Error(d?.error||'Resubmit failed')
-
-        // Success — unlock, go final
         resubmitLockRef.current=false
         modeRef.current='final'
         setMode('final')
@@ -305,23 +297,23 @@ function BotUI({botName}:{botName:string}){
         setUserSubmitted(true)
         setFile(null);setFrames([]);setCommentScreenshot(null);setProgress(0);setVideoDuration(0);setStatus('')
       }else{
-        // Original submit — via Vercel
         const form=new FormData()
         form.append('phoneNumber',number)
         form.append('bot',botKey)
         form.append('videoName',file.name)
         form.append('videoDuration',String(Math.round(videoDuration)))
         form.append('frameTimes',JSON.stringify(frameTimes))
-        // ✅ Frames pehle
         frames.forEach((fr,i)=>form.append(`photo${i}`,fr.blob,`frame_${i+1}.jpg`))
-        // ✅ Screenshot END mein (last frame)
         form.append(`photo${frames.length}`,commentScreenshot,'screenshot.jpg')
-
         const r=await fetch('/api/upload',{method:'POST',body:form})
         const d=await r.json().catch(()=>null)
         if(!r.ok)throw new Error(d?.error||'Send failed')
 
-        // Success — go submitted
+        // NEW: Save video URL before clearing (so preview stays)
+        if(objectUrlRef.current){
+          setSubmittedVideoUrl(objectUrlRef.current)
+          objectUrlRef.current=null // don't revoke — keep for preview
+        }
         modeRef.current='submitted'
         setMode('submitted')
         setUserSubmitted(true)
@@ -329,7 +321,6 @@ function BotUI({botName}:{botName:string}){
       }
     }catch(e){
       setStatus(e instanceof Error?e.message:'Could not send')
-      // 🚫 DO NOT change mode on error — user stays in form/resubmit to retry
     }finally{
       setSending(false)
     }
@@ -337,14 +328,6 @@ function BotUI({botName}:{botName:string}){
 
   const canSubmit=file&&commentScreenshot&&frames.length>0&&progress===100&&!processing&&!sending
   const videoReady=file&&!processing&&frames.length>0
-
-  const todayISO=()=>{
-    const d=new Date()
-    const y=d.getFullYear()
-    const m=String(d.getMonth()+1).padStart(2,'0')
-    const day=String(d.getDate()).padStart(2,'0')
-    return `${y}-${m}-${day}`
-  }
 
   return(
     <main className="app-shell">
@@ -406,39 +389,40 @@ function BotUI({botName}:{botName:string}){
             </div>
           </div>
 
-          {mode==='final'?(
-            <div className="final-block">
-              <div className="final-icon"><Icons.Check/></div>
-              <h3 className="final-title">Submitted Successfully</h3>
-              <p className="final-sub">Your video has been received. No further action needed.</p>
-            </div>
-          ):mode==='submitted'?(
+          {mode==='submitted'?(
             <div className="submitted-block">
               <div className="submitted-badge">
                 <Icons.Check/>
                 <span>Submitted successfully</span>
               </div>
-              <div className="submitted-preview">
-                {userMeta?.frames&&userMeta.frames.length>0&&(
-                  <img
-                    src={`${FRAMES_URL}/${todayISO()}/${botKey}/${userMeta.folder}/${userMeta.frames[0].file}`}
-                    alt="Submitted"
+              {submittedVideoUrl&&(
+                <div className="submitted-preview">
+                  <video
+                    src={submittedVideoUrl}
                     className="submitted-frame"
-                    onError={(e)=>{(e.target as HTMLImageElement).style.display='none'}}
+                    controls
+                    muted
+                    playsInline
                   />
-                )}
-                <div className="submitted-info">
-                  <div className="submitted-label">Your submitted video</div>
-                  <div className="submitted-name">{userMeta?.video_name||'Video'}</div>
-                  <div className="submitted-time">{userMeta?.datetime||''}</div>
+                  <div className="submitted-info">
+                    <div className="submitted-label">Your submitted video</div>
+                    <div className="submitted-name">{userMeta?.video_name||'Video'}</div>
+                    <div className="submitted-time">{userMeta?.datetime||''}</div>
+                  </div>
                 </div>
-              </div>
+              )}
               {canResubmit&&(
                 <button className="btn-mistake" onClick={enterResubmitMode}>
                   <Icons.Alert/>
                   <span>Any mistake? Resubmit (1 time only)</span>
                 </button>
               )}
+            </div>
+          ):mode==='final'?(
+            <div className="final-block">
+              <div className="final-icon"><Icons.Check/></div>
+              <h3 className="final-title">Submitted Successfully</h3>
+              <p className="final-sub">Your video has been received. No further action needed.</p>
             </div>
           ):(<>
             {mode!=='resubmit'&&(<>
