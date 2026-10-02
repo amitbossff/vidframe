@@ -78,6 +78,12 @@ html,body{margin:0;padding:0;background:var(--bg-1);color:var(--text);font-famil
 .icon-btn:hover{color:var(--text);border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.08)}
 .error{font-size:12px;color:#fca5a5;margin-top:2px;font-weight:500}
 
+/* ============ BOT TOP BAR (Home button) ============ */
+.bot-top-bar{display:flex;align-items:center;padding:10px 14px;background:rgba(0,0,0,.2);border-bottom:1px solid var(--border)}
+.bot-home-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.25);border-radius:20px;color:#c4b5fd;font-size:12px;font-weight:700;text-decoration:none;transition:all .15s;font-family:inherit}
+.bot-home-btn:hover{background:rgba(99,102,241,.25);border-color:rgba(99,102,241,.5);color:#fff;transform:translateY(-1px)}
+.bot-home-btn svg{width:14px;height:14px;flex-shrink:0}
+
 /* ============ BOT HEADER BAR ============ */
 .bot-header-bar{display:flex;align-items:stretch;justify-content:space-between;gap:10px;padding:12px 16px;background:linear-gradient(135deg,rgba(15,20,35,.9),rgba(20,26,40,.9));border-bottom:1px solid var(--border);position:relative;z-index:2}
 .bot-header-watch{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;border-radius:12px;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#fff;min-width:0}
@@ -86,6 +92,16 @@ html,body{margin:0;padding:0;background:var(--bg-1);color:var(--text);font-famil
 .bot-header-amount{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 16px;background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(5,150,105,.08));border:1px solid rgba(16,185,129,.35);border-radius:12px;min-width:88px;box-shadow:0 0 20px rgba(16,185,129,.15)}
 .amount-value{font-size:20px;font-weight:900;color:#6ee7b7;line-height:1;letter-spacing:-.5px;text-shadow:0 0 12px rgba(16,185,129,.4)}
 .amount-label{font-size:9px;color:#6ee7b7;font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-top:2px;opacity:.8}
+
+/* ============ LIVE COUNTER STRIP (always visible) ============ */
+.live-counter-strip{display:flex;flex-direction:column;gap:5px;padding:10px 16px;background:rgba(0,0,0,.15);border-bottom:1px solid var(--border);position:relative;z-index:1}
+.live-counter-strip .live-counter-head{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;font-weight:700;letter-spacing:.5px}
+.live-counter-strip .live-dot-wrap{display:inline-flex;align-items:center;gap:5px;color:#10b981;font-size:10.5px}
+.live-counter-strip .live-dot{width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulse-dot 1.5s ease infinite}
+.live-counter-strip .live-count{color:#a5b4fc;font-variant-numeric:tabular-nums;font-size:13px;font-weight:800}
+.live-counter-strip .live-bar{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.live-counter-strip .live-fill{height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6,#06b6d4);border-radius:3px;transition:width .4s;box-shadow:0 0 10px rgba(139,92,246,.5)}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
 
 /* ============ TASK HERO ============ */
 .task-hero{position:relative;width:100%;aspect-ratio:16/9;max-height:210px;background:#000;overflow:hidden;border-bottom:1px solid var(--border)}
@@ -107,14 +123,6 @@ html,body{margin:0;padding:0;background:var(--bg-1);color:var(--text);font-famil
 .tag-chip{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);border-radius:20px;color:#c4b5fd;font-size:10.5px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .18s;line-height:1.3;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tag-chip:hover{background:linear-gradient(135deg,rgba(99,102,241,.3),rgba(139,92,246,.25));color:#fff;transform:translateY(-1px)}
 .tag-chip svg{flex-shrink:0;opacity:.65;width:10px;height:10px}
-.live-counter{display:flex;flex-direction:column;gap:5px;margin-top:2px;padding:9px 11px;background:rgba(0,0,0,.22);border:1px solid var(--border);border-radius:11px}
-.live-counter-head{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:700;letter-spacing:.5px}
-.live-dot-wrap{display:inline-flex;align-items:center;gap:5px;color:#10b981;font-size:10px}
-.live-dot{width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulse-dot 1.5s ease infinite}
-@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
-.live-count{color:#a5b4fc;font-variant-numeric:tabular-nums;font-size:12px;font-weight:800}
-.live-bar{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
-.live-fill{height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6,#06b6d4);border-radius:3px;transition:width .4s;box-shadow:0 0 10px rgba(139,92,246,.5)}
 .divider{height:1px;margin:10px 0 0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.1),transparent)}
 
 /* ============ SUBMITTED BLOCK ============ */
@@ -283,11 +291,15 @@ html,body{margin:0;padding:0;background:var(--bg-1);color:var(--text);font-famil
 .task-list-thumb-wrap{width:85px;height:60px}
 .task-list-title{font-size:10.5px}
 .task-list-channel{font-size:9px}
+.bot-top-bar{padding:8px 12px}
+.bot-home-btn{padding:6px 12px;font-size:11px}
 .bot-header-bar{padding:10px 12px;gap:8px}
 .bot-header-watch{padding:8px 10px;font-size:9.5px}
 .bot-header-amount{padding:6px 12px;min-width:76px}
 .amount-value{font-size:17px}
 .amount-label{font-size:8px}
+.live-counter-strip{padding:8px 12px;gap:4px}
+.live-counter-strip .live-count{font-size:12px}
 .submitted-block{padding:16px 14px;gap:12px}
 .submitted-badge{font-size:12px;padding:9px 14px}
 .final-block{padding:32px 20px 28px}
