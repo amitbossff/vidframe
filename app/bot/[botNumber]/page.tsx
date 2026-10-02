@@ -1,6 +1,5 @@
-import UploadPage from '../../page'
+import BotPage from '../../[botSlug]/page'
 
-export default async function BotPage({ params }: { params: Promise<{ botNumber: string }> }) {
-  const { botNumber } = await params
-  return <UploadPage botName={`bot${botNumber.replace(/^bot/i, '')}`} />
+export default function BotNumberPage({params}:{params:Promise<{botNumber:string}>}){
+return <BotPage params={params.then(p=>({botSlug:`bot${p.botNumber.replace(/^bot/i,'')}`}))}/>
 }
