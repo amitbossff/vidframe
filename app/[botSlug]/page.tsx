@@ -14,6 +14,7 @@ Check:()=>(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="c
 Play:()=>(<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>),
 Pause:()=>(<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>),
 Arrow:()=>(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>),
+Back:()=>(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>),
 X:()=>(<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>),
 External:()=>(<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>),
 Alert:()=>(<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>),
@@ -113,7 +114,6 @@ function BotUI({botName}:{botName:string}){
       }
     }
     f()
-    // 🔥 Faster refresh: 3 seconds
     const tm=setInterval(f,3000)
     return()=>{c=true;clearInterval(tm)}
   },[botKey,number])
@@ -327,12 +327,8 @@ function BotUI({botName}:{botName:string}){
   const canSubmit=file&&commentScreenshot&&frames.length>0&&progress===100&&!processing&&!sending
   const videoReady=file&&!processing&&frames.length>0
 
-  // ============ KEY LOGIC ============
-  // Priority: user_submitted > is_over
-  // If user submitted → show submitted/final/resubmit UI (allows edit even if task is over)
-  // If user NOT submitted + task over → show "Task Over" state
   const showTaskOver = hasTask && task?.is_over && !userSubmitted
-  const showResubmitAllowed = userSubmitted && canResubmit  // allows edit till midnight
+  const showResubmitAllowed = userSubmitted && canResubmit
   const showActive = hasTask && task && !showTaskOver
 
   return(
@@ -371,13 +367,10 @@ function BotUI({botName}:{botName:string}){
           </div>
         )}
 
-        {/* ============ TASK OVER (only if user has NOT submitted) ============ */}
         {!loadingTask&&number&&showTaskOver&&(
           <div className="taskover-block">
             <div className="taskover-glow"/>
-            <div className="taskover-icon">
-              <Icons.Stop/>
-            </div>
+            <div className="taskover-icon"><Icons.Stop/></div>
             <h2 className="taskover-title">Task Over</h2>
             <p className="taskover-sub">All slots filled. No more submissions accepted for today.</p>
             <div className="taskover-stats">
@@ -398,32 +391,18 @@ function BotUI({botName}:{botName:string}){
           </div>
         )}
 
-        {/* ============ ACTIVE / SUBMITTED / FINAL / RESUBMIT ============ */}
         {!loadingTask&&number&&showActive&&task&&(<>
-          <div className="bot-top-bar">
-            <Link href="/" className="bot-home-btn">
-              <Icons.Home/>
-              <span>Home</span>
-            </Link>
-          </div>
-
+          {/* Header: Arrow + Watch + Amount in one line */}
           <div className="bot-header-bar">
+            <Link href="/" className="bot-back-btn" aria-label="Back to home">
+              <Icons.Back/>
+            </Link>
             <div className={`bot-header-watch ${task.watch_type==='full'?'watch-full':'watch-minutes'}`}>
               {task.watch_type==='full'?'▶ WATCH FULL VIDEO':`⏱ WATCH ${task.watch_minutes} MIN ONLY`}
             </div>
             <div className="bot-header-amount">
               <div className="amount-value">₹{task.amount||0}</div>
               <div className="amount-label">per user</div>
-            </div>
-          </div>
-
-          <div className="live-counter-strip">
-            <div className="live-counter-head">
-              <span className="live-dot-wrap"><span className="live-dot"/>LIVE</span>
-              <span className="live-count">{task.completed_count} / {task.user_limit}</span>
-            </div>
-            <div className="live-bar">
-              <div className="live-fill" style={{width:`${Math.min(100,(task.completed_count/task.user_limit)*100)}%`}}/>
             </div>
           </div>
 
@@ -499,8 +478,18 @@ function BotUI({botName}:{botName:string}){
                   </div>
                 )}
               </div>
-              <div className="divider"/>
             </>)}
+
+            {/* Live counter: after tags, before upload */}
+            <div className="live-counter-strip">
+              <div className="live-counter-head">
+                <span className="live-dot-wrap"><span className="live-dot"/>LIVE</span>
+                <span className="live-count">{task.completed_count} / {task.user_limit}</span>
+              </div>
+              <div className="live-bar">
+                <div className="live-fill" style={{width:`${Math.min(100,(task.completed_count/task.user_limit)*100)}%`}}/>
+              </div>
+            </div>
 
             <div className="upload compact-upload">
               {mode==='resubmit'&&(
