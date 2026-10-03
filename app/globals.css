@@ -262,6 +262,7 @@ html,body{margin:0;padding:0;background:var(--bg-1);color:var(--text);font-famil
 .my-header-sub{font-size:10.5px;color:var(--text-3);font-weight:500;margin-top:2px}
 .my-header-spacer{width:34px;flex-shrink:0}
 .my-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:12px 16px 4px}
+.my-stats-2{grid-template-columns:1fr 1fr}
 .my-stat{padding:12px 8px;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:12px;text-align:center}
 .my-stat-num{font-size:20px;font-weight:800;background:linear-gradient(135deg,#a5b4fc,#c4b5fd);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.5px;font-variant-numeric:tabular-nums;line-height:1;margin-bottom:4px}
 .my-stat-label{font-size:9.5px;color:#8b9bb5;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
