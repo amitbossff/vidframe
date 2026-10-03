@@ -21,13 +21,12 @@ const[error,setError]=useState('')
 const[number,setNumber]=useState('')
 const[months,setMonths]=useState<MonthData[]>([])
 const[totalUploads,setTotalUploads]=useState(0)
-const[totalBots,setTotalBots]=useState(0)
 const[totalDays,setTotalDays]=useState(0)
 const[selectedMonth,setSelectedMonth]=useState('')
 const[selectedDate,setSelectedDate]=useState('')
 
 useEffect(()=>{const s=window.localStorage.getItem('user_number_v1');if(s&&/^\d{10}$/.test(s))setNumber(s);else{setError('No number saved. Please set it from home.');setLoading(false);}},[])
-useEffect(()=>{if(!number)return;let c=false;async function f(){try{const r=await fetch(`${API}/user_list.php?number=${number}`);const t=await r.text();if(t.trim().startsWith('<'))throw new Error('Invalid');const d=JSON.parse(t);if(c)return;if(!d.ok)throw new Error(d.error||'Failed');setMonths(d.months||[]);setTotalUploads(d.total_uploads||0);setTotalBots(d.total_bots||0);setTotalDays(d.total_days||0);if(d.months?.length>0&&!selectedMonth)setSelectedMonth(d.months[0].month);}catch(e){if(!c)setError(e instanceof Error?e.message:'Failed');}finally{if(!c)setLoading(false);}}f();return()=>{c=true;};},[number])
+useEffect(()=>{if(!number)return;let c=false;async function f(){try{const r=await fetch(`${API}/user_list.php?number=${number}`);const t=await r.text();if(t.trim().startsWith('<'))throw new Error('Invalid');const d=JSON.parse(t);if(c)return;if(!d.ok)throw new Error(d.error||'Failed');setMonths(d.months||[]);setTotalUploads(d.total_uploads||0);setTotalDays(d.total_days||0);if(d.months?.length>0&&!selectedMonth)setSelectedMonth(d.months[0].month);}catch(e){if(!c)setError(e instanceof Error?e.message:'Failed');}finally{if(!c)setLoading(false);}}f();return()=>{c=true;};},[number])
 
 const currentMonthData=months.find(m=>m.month===selectedMonth)
 const currentDateData=currentMonthData?.dates.find(d=>d.date===selectedDate)
@@ -45,7 +44,10 @@ return(<main className="app-shell">
 {loading&&(<div className="state-box" style={{padding:'40px 20px'}}><div className="spinner"/><p className="state-text">Loading...</p></div>)}
 {!loading&&error&&(<div className="state-box" style={{padding:'40px 20px'}}><div className="state-icon">📱</div><h2 className="state-title" style={{fontSize:'16px'}}>Number not set</h2><p className="state-sub">Please set your number from home page</p><Link href="/" className="back-home-link">← Back to home</Link></div>)}
 {!loading&&!error&&months.length===0&&(<div className="state-box" style={{padding:'40px 20px'}}><div className="state-icon">📭</div><h2 className="state-title" style={{fontSize:'16px'}}>No submissions yet</h2><p className="state-sub">Complete tasks to see them here</p><Link href="/" className="back-home-link">← Back to home</Link></div>)}
-{!loading&&!error&&months.length>0&&!selectedMonth&&(<div className="my-stats"><div className="my-stat"><div className="my-stat-num">{totalUploads}</div><div className="my-stat-label">Total Uploads</div></div><div className="my-stat"><div className="my-stat-num">{totalBots}</div><div className="my-stat-label">Bots Used</div></div><div className="my-stat"><div className="my-stat-num">{totalDays}</div><div className="my-stat-label">Active Days</div></div></div>)}
+{!loading&&!error&&months.length>0&&!selectedMonth&&(<div className="my-stats my-stats-2">
+<div className="my-stat"><div className="my-stat-num">{totalUploads}</div><div className="my-stat-label">Submissions</div></div>
+<div className="my-stat"><div className="my-stat-num">{totalDays}</div><div className="my-stat-label">Active Days</div></div>
+</div>)}
 {!loading&&!error&&months.length>0&&!selectedMonth&&(<div className="my-content"><div className="my-section-title">Select Month</div><div className="my-chips">{months.map(m=>(<button key={m.month} className="my-chip" onClick={()=>setSelectedMonth(m.month)}><Icons.Calendar/><span>{formatMonth(m.month)}</span><span className="my-chip-count">{m.total}</span></button>))}</div></div>)}
 {!loading&&!error&&selectedMonth&&!selectedDate&&currentMonthData&&(<div className="my-content"><div className="my-section-title">Select Date</div><div className="my-chips">{currentMonthData.dates.map(d=>(<button key={d.date} className="my-chip" onClick={()=>setSelectedDate(d.date)}><Icons.Calendar/><span>{formatDateShort(d.date)}</span><span className="my-chip-count">{d.total}</span></button>))}</div></div>)}
 {!loading&&!error&&selectedDate&&currentDateData&&(<div className="my-content"><div className="my-section-title">Your Bots</div><div className="my-chips">{currentDateData.bots.map(b=>(<div key={b.bot} className="my-bot-chip"><Icons.Robot/><span className="my-bot-name">{b.bot}</span><span className="my-chip-count">{b.count}</span></div>))}</div></div>)}
